@@ -47,13 +47,22 @@ def ends_with_punctuation(prev_line, _, block_bbox, align):
 # --- 블록 분리 여부 판단 함수 ---
 
 def should_split_block(prev_line, line, block_bbox, align):
+    # print (lineText(prev_line) + "////" + lineText(line))
     if align == ALIGN_CENTER:
       return any([
         ends_with_punctuation(prev_line, line, block_bbox, align),
         starts_with_bullet(prev_line, line),
         starts_with_numbered_list(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
       ])
-  
+
+    # print(
+    #   is_indent(prev_line, line),
+    #   ends_with_punctuation(prev_line, line, block_bbox, align),
+    #   is_short_line(prev_line, line, block_bbox),
+    #   # starts_with_upper(prev_line, line),
+    #   starts_with_bullet(prev_line, line),
+    #   starts_with_numbered_list(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False))
+    # )
     return any([
         is_indent(prev_line, line),
         ends_with_punctuation(prev_line, line, block_bbox, align),
@@ -161,7 +170,7 @@ if __name__ == "__main__":
         # drawBBox(l["bbox"],page)
         for s in l["spans"]:
           text += s["text"]
-      print(text)
+      # print(text)
       drawBBox(b["bbox"], page)
   doc.save("draw_bbox_b.pdf", garbage=3, clean=True, deflate=True)
 

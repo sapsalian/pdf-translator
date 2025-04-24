@@ -37,6 +37,7 @@ def getFirstXExceptBullet(line):
 
     # 남은 글자의 첫 x0 찾기
     target_index = len(text) - len(cleaned_text)
+    # print(cleaned_text + "/////" + text, target_index)
     char_count = 0
     for span in line.get("spans", []):
         span_text = span.get("text", "")
@@ -97,7 +98,8 @@ def isLinesStartWithSameX(line1, line2, bullet_remove=True):
     x2 = getFirstXExceptBullet(line2)
   
   char_width = min(getFirstCharacterWidth(line1), getFirstCharacterWidth(line2))
-  return abs(x1 - x2) <= char_width * 1
+  # print(x1, x2, char_width)
+  return abs(x1 - x2) <= char_width * 1.5
 
 def starts_with_bullet(_, line):
     # 현재 줄이 불릿 기호로 시작하는가
