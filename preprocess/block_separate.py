@@ -44,23 +44,6 @@ def ends_with_punctuation(prev_line, _, block_bbox, align):
     text = "".join(span["text"] for span in prev_line["spans"]).strip()
     return text and text[-1] in ".:!?" and (align == ALIGN_CENTER or is_short_line(prev_line, _, block_bbox, 0.97))
 
-def is_short_line(prev_line, line, block_bbox, ratio=0.9):
-    # 이전 줄이 전체 block 너비의 90% 이하에서 끝나면서, 다음줄이 대문자로 시작하는가
-    block_x0 = block_bbox[0]
-    block_x2 = block_bbox[2]
-    
-    x0, x2 = prev_line["bbox"][0], prev_line["bbox"][2]
-    prev_width = x2 - block_x0
-    block_width = block_x2 - block_x0
-
-    return (prev_width < block_width * ratio) and starts_with_upper(prev_line, line)
-
-def starts_with_upper(_, line):
-    # 현재 줄이 대문자로 시작하는가
-    text = "".join(span["text"] for span in line["spans"]).strip()
-    return bool(re.match(r"[A-Z][a-z]", text))
-
-
 # --- 블록 분리 여부 판단 함수 ---
 
 def should_split_block(prev_line, line, block_bbox, align):
@@ -68,7 +51,7 @@ def should_split_block(prev_line, line, block_bbox, align):
       return any([
         ends_with_punctuation(prev_line, line, block_bbox, align),
         starts_with_bullet(prev_line, line),
-        starts_with_numbered_list(prev_line, line, True),
+        starts_with_numbered_list(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
       ])
   
     return any([
@@ -77,7 +60,7 @@ def should_split_block(prev_line, line, block_bbox, align):
         is_short_line(prev_line, line, block_bbox),
         # starts_with_upper(prev_line, line),
         starts_with_bullet(prev_line, line),
-        starts_with_numbered_list(prev_line, line, True),
+        starts_with_numbered_list(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
     ])
 
 

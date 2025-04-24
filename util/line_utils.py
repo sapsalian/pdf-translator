@@ -88,9 +88,14 @@ def getFirstCharacterWidth(line):
 
     return 0  # 못 찾았을 경우
   
-def isLinesStartWithSameX(line1, line2):
-  x1 = getFirstXExceptBullet(line1)
-  x2 = getFirstXExceptBullet(line2)
+def isLinesStartWithSameX(line1, line2, bullet_remove=True):
+  x1 = line1["bbox"][0]
+  x2 = line2["bbox"][0]
+  
+  if bullet_remove:
+    x1 = getFirstXExceptBullet(line1)
+    x2 = getFirstXExceptBullet(line2)
+  
   char_width = min(getFirstCharacterWidth(line1), getFirstCharacterWidth(line2))
   return abs(x1 - x2) <= char_width * 1
 
@@ -99,9 +104,35 @@ def starts_with_bullet(_, line):
     text = lineText(line)
     return bool(re.match(r"^[\u2022\u2023\u25AA\u25E6\u25BA\-\*\"\+\u2219\u25CB\u25E6\u2023\u2192\u2714\u2726\"]\s+", text))
 
-def starts_with_numbered_list(_, line, sepa_check = False):
+def is_short_line(prev_line, line, block_bbox, ratio=0.9):
+  # 이전 줄이 전체 block 너비의 90% 이하에서 끝나면서, 다음줄이 대문자로 시작하는가
+  block_x0 = block_bbox[0]
+  block_x2 = block_bbox[2]
+  
+  x0, x2 = prev_line["bbox"][0], prev_line["bbox"][2]
+  prev_width = x2 - block_x0
+  block_width = block_x2 - block_x0
+
+  return (prev_width < block_width * ratio) and starts_with_upper(prev_line, line)
+
+def starts_with_upper(_, line):
+    # 현재 줄이 대문자로 시작하는가
+    text = "".join(span["text"] for span in line["spans"]).strip()
+    return bool(re.match(r"[A-Z][a-z]", text))
+
+def isLineFull(line, block_bbox):
+  block_x0 = block_bbox[0]
+  block_x2 = block_bbox[2]
+  
+  x0, x2 = line["bbox"][0], line["bbox"][2]
+  
+  line_width = x2 - block_x0
+  block_width = block_x2 - block_x0
+  
+  return (line_width >= block_width * 0.99)
+
+def starts_with_numbered_list(prev_line, line, sepa_check = False):
     # 현재 줄이 숫자+점 형식으로 시작하는가 (1., 2., ...)
-    
     
     patterns = [
         r"^(\d+\.)+\s+",          # 1.3.2. 1.3.3. ...
