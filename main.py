@@ -27,7 +27,7 @@ def makeOutput(pdf_name):
         
     for b in blocks:
         drawBBox(b["bbox"], page)
-        draw_alignment_label(page, b)
+        # draw_alignment_label(page, b)
         # print(blockText(b))
       
         # for l in b["lines"]:

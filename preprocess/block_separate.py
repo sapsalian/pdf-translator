@@ -63,14 +63,13 @@ def starts_with_upper(_, line):
 
 # --- 블록 분리 여부 판단 함수 ---
 
-def should_split_block(prev_line, line, block_bbox):
-    print(lineText(prev_line) + '///' + lineText(line))
-    print(is_indent(prev_line, line),
+def should_split_block(prev_line, line, block_bbox, align):
+    if align == ALIGN_CENTER:
+      return any([
         ends_with_punctuation(prev_line, line, block_bbox),
-        is_short_line(prev_line, line, block_bbox),
-        # starts_with_upper(prev_line, line),
         starts_with_bullet(prev_line, line),
-        starts_with_numbered_list(prev_line, line, True),)
+        starts_with_numbered_list(prev_line, line, True),
+      ])
   
     return any([
         is_indent(prev_line, line),
@@ -117,9 +116,9 @@ def separateBlock(block):
         ]
         
     def getRealBbox(current_bbox, original_bbox): 
-        # height 그대로 두고, original의 너비 적용.
+        # 라인 따라 계산된 bbox에서 x 오른쪽 경계만 yolo의 것을 그대로 따르기
         return [
-            original_bbox[0],  # x0
+            current_bbox[0],  # x0
             current_bbox[1],  # y0
             original_bbox[2],  # x1
             current_bbox[3],  # y1
@@ -127,7 +126,7 @@ def separateBlock(block):
         
 
     for line in lines[1:]:
-        if (should_split_block(prev_line, line, block["bbox"]) if len(current_block) == 1 else should_split_block(prev_line, line, current_bbox)):
+        if (should_split_block(prev_line, line, block["bbox"], block["align"]) if len(current_block) == 1 else should_split_block(prev_line, line, current_bbox, block["align"])):
             separated_blocks.append({
                 "type": block.get("type", 0),
                 "align": block.get("align", ALIGN_LEFT),
