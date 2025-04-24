@@ -30,7 +30,7 @@ def getBlockAlignment(block):
         line_center_x = (line_x0 + line_x1) / 2
 
         avg_char_width = get_average_char_width(line)
-        tolerance = avg_char_width * 0.3  # 평균 문자 폭의 0.9배 이내면 중앙정렬로 간주
+        tolerance = avg_char_width * 0.5  # 평균 문자 폭의 0.5배 이내면 중앙정렬로 간주
 
         diff = abs(line_center_x - block_center_x)
         if diff > tolerance:
