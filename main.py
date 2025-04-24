@@ -3,6 +3,21 @@ from preprocess.preprocess import preProcess
 from text_extract.draw_bbox import drawBBox
 import sys, os
 
+def draw_alignment_label(page, block, font_size=8):
+    align = block.get("align", "")
+    if not align:
+        return
+
+    x0, y0, _, _ = block["bbox"]
+    label_pos = (x0, y0 - font_size - 1)  # 블럭 상단 바로 위
+
+    page.insert_text(
+        label_pos,
+        align.upper(),  # 예: CENTER, LEFT, RIGHT
+        fontsize=font_size,
+        fill=(1, 0, 0),  # 빨간색
+    )
+    
 def makeOutput(pdf_name):
   doc = pymupdf.open("inputFile/" + pdf_name)
   
@@ -12,6 +27,7 @@ def makeOutput(pdf_name):
         
     for b in blocks:
         drawBBox(b["bbox"], page)
+        draw_alignment_label(page, b)
         # print(blockText(b))
       
         # for l in b["lines"]:
@@ -19,7 +35,7 @@ def makeOutput(pdf_name):
             # for s in l["spans"]:   
             #   drawBBox(s["bbox"], page, 0.2)
       
-  doc.save("output_" + pdf_name, garbage=3, clean=True, deflate=True)
+  doc.save("outputFile/output_" + pdf_name, garbage=3, clean=True, deflate=True)
 
 
 

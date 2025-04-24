@@ -2,6 +2,7 @@ import pymupdf
 import re
 from text_extract.text_extract import lineText
 from util.line_utils import *
+from util.block_utils import *
 
 
 # 블록 다시 나누기 전, 한 라인 내에 단순 스페이스 이상으로 멀리 떨어져 있는 요소들은 따로 블락으로 나누는 전처리 하기.
@@ -119,6 +120,7 @@ def separateBlock(block):
         if (should_split_block(prev_line, line, block["bbox"]) if len(current_block) == 1 else should_split_block(prev_line, line, block_bbox)):
             separated_blocks.append({
                 "type": block.get("type", 0),
+                "align": block.get("align", ALIGN_LEFT),
                 "bbox": block_bbox,
                 "lines": current_block
             })
@@ -133,6 +135,7 @@ def separateBlock(block):
     if current_block:
         separated_blocks.append({
             "type": block.get("type", 0),
+            "align": block.get("align", ALIGN_LEFT),
             "bbox": block_bbox,
             "lines": current_block
         })

@@ -2,6 +2,7 @@ import pymupdf
 from preprocess.continuos_block_merge import mergeContinuosBlocks
 from preprocess.block_separate import extractTrueBlocks
 from preprocess.line_preprocess import linePreprocess
+from preprocess.block_align_check import assignAlignToBlocks
 
 '''
 1. 블록 병합
@@ -16,7 +17,8 @@ def preProcess(page):
   blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
   blocks = mergeContinuosBlocks(blocks)
   blocks = linePreprocess(blocks)
-  blocks = extractTrueBlocks(blocks)
+  assignAlignToBlocks(blocks) # yolo 블락 적용해주고 난 다음에 호출하면 더 정확할 듯
+  blocks = extractTrueBlocks(blocks) 
   
   return blocks
 
