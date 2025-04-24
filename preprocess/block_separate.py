@@ -105,7 +105,7 @@ def separateBlock(block):
     separated_blocks = []
     current_block = [lines[0]]
     prev_line = lines[0]
-    block_bbox = list(prev_line["bbox"])  # ← 리스트로 바꿔야 값 변경 가능
+    current_bbox = list(prev_line["bbox"])  # ← 리스트로 바꿔야 값 변경 가능
 
     def update_bbox(bbox1, bbox2):
         # bbox1을 bbox2를 포함하도록 확장
@@ -115,20 +115,30 @@ def separateBlock(block):
             max(bbox1[2], bbox2[2]),  # x1
             max(bbox1[3], bbox2[3]),  # y1
         ]
+        
+    def getRealBbox(current_bbox, original_bbox): 
+        # height 그대로 두고, original의 너비 적용.
+        return [
+            original_bbox[0],  # x0
+            current_bbox[1],  # y0
+            original_bbox[2],  # x1
+            current_bbox[3],  # y1
+        ]
+        
 
     for line in lines[1:]:
-        if (should_split_block(prev_line, line, block["bbox"]) if len(current_block) == 1 else should_split_block(prev_line, line, block_bbox)):
+        if (should_split_block(prev_line, line, block["bbox"]) if len(current_block) == 1 else should_split_block(prev_line, line, current_bbox)):
             separated_blocks.append({
                 "type": block.get("type", 0),
                 "align": block.get("align", ALIGN_LEFT),
-                "bbox": block_bbox,
+                "bbox": getRealBbox(current_bbox, block["bbox"]),
                 "lines": current_block
             })
             current_block = [line]
-            block_bbox = list(line["bbox"])  # 새 블록 시작 시 bbox 초기화
+            current_bbox = list(line["bbox"])  # 새 블록 시작 시 bbox 초기화
         else:
             current_block.append(line)
-            block_bbox = update_bbox(block_bbox, line["bbox"])  # 기존 bbox 확장
+            current_bbox = update_bbox(current_bbox, line["bbox"])  # 기존 bbox 확장
 
         prev_line = line
 
@@ -136,7 +146,7 @@ def separateBlock(block):
         separated_blocks.append({
             "type": block.get("type", 0),
             "align": block.get("align", ALIGN_LEFT),
-            "bbox": block_bbox,
+            "bbox": getRealBbox(current_bbox, block["bbox"]),
             "lines": current_block
         })
 
