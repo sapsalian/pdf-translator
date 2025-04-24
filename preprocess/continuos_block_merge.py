@@ -92,103 +92,98 @@ def mergeBlocksByLineOverlap(blocks):
 
     return merged_blocks
   
+  
 def mergeBlocksByYGap(blocks):
     """
-    비슷한 x 시작점과 y 간격이 좁은 블락들을 병합한 새로운 블락 리스트를 반환합니다.
+    y 간격이 좁고 x축 너비 기준으로 50% 이상 겹치는 블락들을 병합한 새로운 블락 리스트 반환
     """
+
     def get_block_top_y(block):
         for line in block.get("lines", []):
             return line["bbox"][1]
         return float("inf")
 
-    def get_first_font_size(block):
-        for line in block.get("lines", []):
-            for span in line.get("spans", []):
-                if span.get("text"):
-                    return span.get("size", 12)
-        return 12
+    def get_block_width(block):
+        x0, _, x1, _ = block["bbox"]
+        return x1 - x0
+
+    def get_x_overlap_ratio(block1, block2):
+        x0_1, _, x1_1, _ = block1["bbox"]
+        x0_2, _, x1_2, _ = block2["bbox"]
+        overlap = max(0, min(x1_1, x1_2) - max(x0_1, x0_2))
+        min_width = min(get_block_width(block1), get_block_width(block2))
+        return overlap / min_width if min_width > 0 else 0
+
+    def get_vertical_gap_and_min_height(block1, block2):
+        line1 = block1["lines"][-1]
+        line2 = block2["lines"][0]
+
+        y1_bottom = line1["bbox"][3]
+        y2_top = line2["bbox"][1]
+
+        h1 = line1["bbox"][3] - line1["bbox"][1]
+        h2 = line2["bbox"][3] - line2["bbox"][1]
+        min_height = min(h1, h2)
+
+        return y2_top - y1_bottom, min_height
 
     def can_merge(prev, curr):
-    # x축 시작점 유사 여부 판단
-        if not isLinesStartWithSameX(prev["lines"][-1], curr["lines"][0]):
-            return False
+        vertical_gap, min_height = get_vertical_gap_and_min_height(prev, curr)
 
-        # y축 거리 유사 여부 판단 (라인 높이 기준)
-        prev_last_line = prev["lines"][-1]
-        curr_first_line = curr["lines"][0]
-
-        prev_y0, prev_y1 = prev_last_line["bbox"][1], prev_last_line["bbox"][3]
-        curr_y0, curr_y1 = curr_first_line["bbox"][1], curr_first_line["bbox"][3]
-
-        prev_line_height = prev_y1 - prev_y0
-        curr_line_height = curr_y1 - curr_y0
-        min_height = min(prev_line_height, curr_line_height)
-
-        vertical_gap = curr_y0 - prev_y1
         if vertical_gap > 0.5 * min_height:
             return False
-          
+
+        if get_x_overlap_ratio(prev, curr) < 0.5:
+            return False
+
         if not hasSameDirection(prev["lines"][-1], curr["lines"][0]):
             return False
+
         return True
 
+    def group_blocks_by_y_then_x(blocks):
+        return sorted(blocks, key=lambda b: (get_block_top_y(b), b["bbox"][0]))
 
-    def group_blocks_by_x_position(blocks, indent_chars=4):
-        groups = []
-
-        for block in blocks:
-            block_x = block["bbox"][0]
-            font_size = get_first_font_size(block)
-            tolerance = font_size *  indent_chars
-
-            matched = False
-            for group in groups:
-                ref_x = group["ref_x"]
-                if abs(block_x - ref_x) <= tolerance:
-                    group["blocks"].append(block)
-                    matched = True
-                    break
-
-            if not matched:
-                groups.append({"ref_x": block_x, "blocks": [block]})
-
-        # 각 그룹 내에서 y축 기준 정렬
-        for group in groups:
-            group["blocks"].sort(key=lambda b: get_block_top_y(b))
-
-        # 그룹 전체를 ref_x 기준 정렬하고 평탄화
-        groups.sort(key=lambda g: g["ref_x"])
-        sorted_blocks = [block for group in groups for block in group["blocks"]]
-        return sorted_blocks
-
-
-    # 정렬
-    blocks = group_blocks_by_x_position(blocks)
-
+    blocks = group_blocks_by_y_then_x(blocks)
+    used = [False] * len(blocks)  # 병합에 사용된 블락 표시
     merged_blocks = []
-    current = None
 
-    for block in blocks:
-        if not current:
-            current = block
+    for i, base in enumerate(blocks):
+        if used[i]:
             continue
 
-        if can_merge(current, block):
-            current["lines"].extend(block["lines"])
-            # bbox 확장
-            x0 = min(current["bbox"][0], block["bbox"][0])
-            y0 = min(current["bbox"][1], block["bbox"][1])
-            x1 = max(current["bbox"][2], block["bbox"][2])
-            y1 = max(current["bbox"][3], block["bbox"][3])
-            current["bbox"] = [x0, y0, x1, y1]
-        else:
-            merged_blocks.append(current)
-            current = block
+        current = {
+            "lines": base["lines"][:],
+            "bbox": base["bbox"][:],
+            "type": base.get("type", 0)
+        }
+        used[i] = True
 
-    if current:
+        for j in range(i + 1, len(blocks)):
+            if used[j]:
+                continue
+
+            vertical_gap, min_height = get_vertical_gap_and_min_height(current, blocks[j])
+            if vertical_gap > 0.5 * min_height:
+                break
+
+            if can_merge(current, blocks[j]):
+                # 병합
+                current["lines"].extend(blocks[j]["lines"])
+                used[j] = True
+
+                # bbox 확장
+                x0 = min(current["bbox"][0], blocks[j]["bbox"][0])
+                y0 = min(current["bbox"][1], blocks[j]["bbox"][1])
+                x1 = max(current["bbox"][2], blocks[j]["bbox"][2])
+                y1 = max(current["bbox"][3], blocks[j]["bbox"][3])
+                current["bbox"] = [x0, y0, x1, y1]
+
         merged_blocks.append(current)
 
     return merged_blocks
+
+
 
 
 def mergeContinuosBlocks(blocks):

@@ -38,11 +38,11 @@ def is_indent(prev_line, line):
     
     return line_x - prev_x >= avg_char_width * 0.8
 
-def ends_with_punctuation(prev_line, _, block_bbox):
-    # 이전 줄이 마침 기호로 끝나는가(동시에 block 너비의 97% 이하여야 함.)
+def ends_with_punctuation(prev_line, _, block_bbox, align):
+    # 이전 줄이 마침 기호로 끝나는가(동시에 좌측 정렬일 때는 block 너비의 97% 이하여야 함.)
     
     text = "".join(span["text"] for span in prev_line["spans"]).strip()
-    return text and text[-1] in ".:!?" and is_short_line(prev_line, _, block_bbox, 0.97)
+    return text and text[-1] in ".:!?" and (align == ALIGN_CENTER or is_short_line(prev_line, _, block_bbox, 0.97))
 
 def is_short_line(prev_line, line, block_bbox, ratio=0.9):
     # 이전 줄이 전체 block 너비의 90% 이하에서 끝나면서, 다음줄이 대문자로 시작하는가
@@ -66,14 +66,14 @@ def starts_with_upper(_, line):
 def should_split_block(prev_line, line, block_bbox, align):
     if align == ALIGN_CENTER:
       return any([
-        ends_with_punctuation(prev_line, line, block_bbox),
+        ends_with_punctuation(prev_line, line, block_bbox, align),
         starts_with_bullet(prev_line, line),
         starts_with_numbered_list(prev_line, line, True),
       ])
   
     return any([
         is_indent(prev_line, line),
-        ends_with_punctuation(prev_line, line, block_bbox),
+        ends_with_punctuation(prev_line, line, block_bbox, align),
         is_short_line(prev_line, line, block_bbox),
         # starts_with_upper(prev_line, line),
         starts_with_bullet(prev_line, line),
