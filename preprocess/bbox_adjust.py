@@ -94,5 +94,5 @@ def adjustBlocks(blocks, adjust_objects):
 
 
 def adjustBlocksFromYolo(blocks, yolo_objects):
-  adjust_objects = [block for block in yolo_objects if block["class_name"] != "Picture"]
+  adjust_objects = [block for block in yolo_objects if (block["class_name"] not in ["Picture", "Table", "Formula"]) ]
   adjustBlocks(blocks, adjust_objects)
