@@ -20,11 +20,12 @@ def preProcess(page):
   blocks = mergeContinuosBlocks(blocks)
   blocks = linePreprocess(blocks)
   
-  # yolo_objects = detect_objects_from_page(page)
-  # adjustBlocksFromYolo(blocks, yolo_objects)
-  
   assignAlignToBlocks(blocks) 
-  # blocks = extractTrueBlocks(blocks) 
+  
+  yolo_objects = detect_objects_from_page(page)
+  adjustBlocksFromYolo(blocks, yolo_objects)
+  
+  blocks = extractTrueBlocks(blocks) 
   
   return blocks
 

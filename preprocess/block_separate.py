@@ -107,22 +107,13 @@ def separateBlock(block):
             max(bbox1[3], bbox2[3]),  # y1
         ]
         
-    def getRealBbox(current_bbox, original_bbox): 
-        # 라인 따라 계산된 bbox에서 x 오른쪽 경계만 yolo의 것을 그대로 따르기
-        return [
-            current_bbox[0],  # x0
-            current_bbox[1],  # y0
-            original_bbox[2],  # x1
-            current_bbox[3],  # y1
-        ]
-        
 
     for line in lines[1:]:
         if (should_split_block(prev_line, line, block["bbox"], block["align"]) if len(current_block) == 1 else should_split_block(prev_line, line, current_bbox, block["align"])):
             separated_blocks.append({
                 "type": block.get("type", 0),
                 "align": block.get("align", ALIGN_LEFT),
-                "bbox": getRealBbox(current_bbox, block["bbox"]),
+                "bbox": current_bbox,
                 "lines": current_block
             })
             current_block = [line]
@@ -137,7 +128,7 @@ def separateBlock(block):
         separated_blocks.append({
             "type": block.get("type", 0),
             "align": block.get("align", ALIGN_LEFT),
-            "bbox": getRealBbox(current_bbox, block["bbox"]),
+            "bbox": current_bbox,
             "lines": current_block
         })
 
