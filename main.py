@@ -24,19 +24,19 @@ def makeOutput(pdf_name):
   
   for page in doc:
     # read page text as a dictionary, suppressing extra spaces in CJK fonts
-    # blocks = preProcess(page)
+    blocks = preProcess(page)
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
     
-    blocks = detect_objects_from_page(page)
+    # blocks = detect_objects_from_page(page)
     
     for b in blocks:
-        print(b["bbox"])
+        # print(b["bbox"])
         drawBBox(b["bbox"], page)
-        # draw_alignment_label(page, b)
+        draw_alignment_label(page, b)
         # print(blockText(b))
       
-        # for l in b["lines"]:
-        #     drawBBox(l["bbox"], page, 0.1)  
+        for l in b["lines"]:
+            drawBBox(l["bbox"], page, 0.1)  
             # for s in l["spans"]:   
             #   drawBBox(s["bbox"], page, 0.2)
       
