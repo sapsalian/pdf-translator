@@ -70,11 +70,15 @@ def mergeLinesWithOverlap(block):
     block["lines"] = merged_lines
     return block
   
-def linePreprocess(blocks):
+def mergeContinuosLines(blocks):
   # block = mergeLinesWithCloseGap(block)
     new_blocks = []
     
     for b in blocks: 
+      class_name = b.get("class_name", "Text")
+      if class_name in ("Picture", "Formula", "Table"):
+        new_blocks.append(b)
+      else:
         new_blocks.append(mergeLinesWithOverlap(b))
   
     return new_blocks
@@ -92,7 +96,7 @@ if __name__ == "__main__":
   for page in doc[23:24]:
     # read page text as a dictionary, suppressing extra spaces in CJK fonts
     blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
-    blocks = linePreprocess(blocks)
+    blocks = mergeContinuosLines(blocks)
         
     for b in blocks:
         drawBBox(b["bbox"], page)

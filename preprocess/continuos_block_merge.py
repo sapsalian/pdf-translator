@@ -273,10 +273,34 @@ def mergeBlocksByYGap(blocks):
 
 
 def mergeContinuosBlocks(blocks):
-  blocks = mergeBlocksByLineOverlap(blocks)
-  blocks = mergeBlocksByYGap(blocks)
-  
-  return blocks
+    """
+    Picture, Formula, Table을 제외한 block들에 대해서만 mergeBlocksByLineOverlap과 mergeBlocksByYGap을 적용한 뒤,
+    제외했던 Picture, Formula, Table block들을 다시 합쳐서 반환한다.
+    """
+
+    if not blocks:
+        return []
+
+    # 1. Picture, Formula, Table block은 따로 분리
+    special_blocks = []
+    normal_blocks = []
+
+    for block in blocks:
+        class_name = block.get("class_name", "Text")
+        if class_name in ("Picture", "Formula", "Table"):
+            special_blocks.append(block)
+        else:
+            normal_blocks.append(block)
+
+    # 2. 나머지 블록들만 mergeBlocksByLineOverlap과 mergeBlocksByYGap 적용
+    merged_normal_blocks = mergeBlocksByLineOverlap(normal_blocks)
+    merged_normal_blocks = mergeBlocksByYGap(merged_normal_blocks)
+
+    # 3. 병합 완료된 normal_blocks + special_blocks 합치기
+    merged_blocks = merged_normal_blocks + special_blocks
+
+    return merged_blocks
+
   
 
 def drawBBox(bbox, page, radius=None):

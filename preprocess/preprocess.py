@@ -1,10 +1,10 @@
 import pymupdf
 from preprocess.continuos_block_merge import mergeContinuosBlocks
 from preprocess.block_separate import extractTrueBlocks
-from preprocess.line_preprocess import linePreprocess
+from preprocess.line_preprocess import mergeContinuosLines
 from preprocess.block_align_check import assignAlignToBlocks
 from preprocess.bbox_adjust import adjustBlocksFromYolo
-from preprocess.assign_classname import assignBlockClassNames
+from preprocess.assign_classname import assignClassNameToBlocks
 from yolo.yolo_inference.detection import detect_objects_from_page
 
 '''
@@ -21,10 +21,10 @@ def preProcess(page):
   
   blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
   
-  assignBlockClassNames(blocks, yolo_objects)
+  assignClassNameToBlocks(blocks, yolo_objects)
   
   blocks = mergeContinuosBlocks(blocks)
-  blocks = linePreprocess(blocks)
+  blocks = mergeContinuosLines(blocks)
   
   assignAlignToBlocks(blocks) 
   

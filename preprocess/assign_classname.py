@@ -1,4 +1,4 @@
-def assignBlockClassNames(blocks, yolo_objects):
+def assignClassNameToBlocks(blocks, yolo_objects):
     """
     각 block에 대해 yolo_objects를 참고하여 class_name을 부여한다.
 
