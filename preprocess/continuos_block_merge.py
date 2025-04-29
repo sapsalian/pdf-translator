@@ -269,10 +269,14 @@ def mergeBlocksByYGap(blocks):
 
 
 
-
-
-
 def mergeContinuosBlocks(blocks):
+  blocks = mergeBlocksByLineOverlap(blocks)
+  blocks = mergeBlocksByYGap(blocks)
+  
+  return blocks
+
+
+def mergeContinuosBlocks2(blocks):
     """
     Picture, Formula, Table을 제외한 block들에 대해서만 mergeBlocksByLineOverlap과 mergeBlocksByYGap을 적용한 뒤,
     제외했던 Picture, Formula, Table block들을 다시 합쳐서 반환한다.
