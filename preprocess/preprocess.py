@@ -4,6 +4,7 @@ from preprocess.block_separate import extractTrueBlocks
 from preprocess.line_preprocess import linePreprocess
 from preprocess.block_align_check import assignAlignToBlocks
 from preprocess.bbox_adjust import adjustBlocksFromYolo
+from preprocess.assign_classname import assignBlockClassNames
 from yolo.yolo_inference.detection import detect_objects_from_page
 
 '''
@@ -19,6 +20,9 @@ def preProcess(page):
   yolo_objects = detect_objects_from_page(page)
   
   blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
+  
+  assignBlockClassNames(blocks, yolo_objects)
+  
   blocks = mergeContinuosBlocks(blocks)
   blocks = linePreprocess(blocks)
   
