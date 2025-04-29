@@ -29,7 +29,7 @@ def makeOutput(pdf_name):
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
     
     for b in blocks:
-        # print(blockText(b), b["bbox"])
+        # print(b["bbox"])
         drawBBox(b["bbox"], page)
         draw_alignment_label(page, b)
         # print(blockText(b))
@@ -39,10 +39,10 @@ def makeOutput(pdf_name):
             # for s in l["spans"]:   
             #   drawBBox(s["bbox"], page, 0.2)
             
-    # blocks = detect_objects_from_page(page)
+     # blocks = detect_objects_from_page(page)
     
     # for b in blocks:
-    #     print(b["bbox"])
+    #     print(b["bbox"], b["class_name"])
     #     drawBBox(b["bbox"], page)
     #     draw_alignment_label(page, b)
         # print(blockText(b))

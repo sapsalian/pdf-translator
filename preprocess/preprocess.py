@@ -16,16 +16,17 @@ from yolo.yolo_inference.detection import detect_objects_from_page
 '''---------------------preprocess-----------------------'''
 
 def preProcess(page):
+  yolo_objects = detect_objects_from_page(page)
+  
   blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
   blocks = mergeContinuosBlocks(blocks)
   blocks = linePreprocess(blocks)
   
   assignAlignToBlocks(blocks) 
   
-  yolo_objects = detect_objects_from_page(page)
-  adjustBlocksFromYolo(blocks, yolo_objects)
-  
   blocks = extractTrueBlocks(blocks) 
+  
+  adjustBlocksFromYolo(blocks, yolo_objects)
   
   return blocks
 
