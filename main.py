@@ -10,7 +10,7 @@ from draw_info.block_info import *
 def makeOutput(pdf_name):
   doc = pymupdf.open("inputFile/" + pdf_name)
   
-  for page in doc:
+  for page in doc[4:6]:
     # read page text as a dictionary, suppressing extra spaces in CJK fonts
     blocks = preProcess(page)
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
@@ -20,7 +20,7 @@ def makeOutput(pdf_name):
         drawBBox(b["bbox"], page)
         # drawAlignmentLabel(page, b)
         drawClassNameLable(page, b)
-        # print(blockText(b))
+        print(blockText(b))
       
         # for l in b["lines"]:
             # drawBBox(l["bbox"], page, 0.1)  
