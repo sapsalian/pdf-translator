@@ -7,7 +7,7 @@ from preprocess.bbox_adjust import adjustBlocksFromYolo
 from preprocess.assign_classname import assignClassNameToBlocks
 from preprocess.split_special_blocks import splitSpecialBlocks
 from preprocess.clean_blocks import cleanBlocks
-from yolo.yolo_inference.detection import detect_objects_from_page
+from yolo.yolo_inference.detect import detectObjectFromPage
 
 '''
 1. 블록 병합
@@ -18,8 +18,8 @@ from yolo.yolo_inference.detection import detect_objects_from_page
 
 '''---------------------preprocess-----------------------'''
 
-def preProcess(page):
-  yolo_objects = detect_objects_from_page(page)
+def preProcess(page, model):
+  yolo_objects = detectObjectFromPage(page, model)
   
   blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
   blocks = cleanBlocks(blocks)
