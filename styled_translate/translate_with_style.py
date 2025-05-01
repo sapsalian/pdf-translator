@@ -1,6 +1,6 @@
 from styled_translate.assign_style import assignSpanStyle
 from styled_translate.find_primarystyle import assignPrimaryStyleId
-from text_extract.text_extract import *
+from styled_translate.translate_block import translateBlock, blockTextWithStyleTags
 
 def translateWithStyle(blocks):
   style_dict = assignSpanStyle(blocks)
@@ -19,7 +19,9 @@ def translateWithStyleTest(blocks):
       print(f"[{style_id}] {style}")
 
   for block in blocks:
-      print(block["primary_style_id"])
-      print(blockText(block))
+      # print(block["primary_style_id"])
+      print(blockTextWithStyleTags(block, style_dict))
+      print(translateBlock(block, style_dict))
+      print("--------------------------")
     
   
