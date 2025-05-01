@@ -27,7 +27,7 @@ class SpanStyle:
         self.is_superscript = is_superscript
         self.y_offset = y_offset  # 라인 기준에서 얼마나 떠 있는지
         self.x_gap_with_prev = x_gap_with_prev  # 이전 span과의 거리
-        self.font_size = font_size
+        self.font_size = font_size * 0.8
         self.is_italic = is_italic
         self.is_bold = is_bold
         self.font_color = font_color
@@ -63,6 +63,19 @@ class SpanStyle:
 
     def __repr__(self):
         return f"SpanStyle({self.__dict__})"
+      
+    def to_dict(self):
+        return {
+            "is_superscript": self.is_superscript,
+            "y_offset": self.y_offset,
+            "x_gap_with_prev": self.x_gap_with_prev,
+            "font_size": self.font_size,
+            "is_italic": self.is_italic,
+            "is_bold": self.is_bold,
+            "font_color": self.font_color,
+            "rotate": self.rotate
+        }
+
 
 # 중복되지 않는 스타일을 관리하고 각 스타일에 고유 ID를 부여하는 클래스
 class StyleManager:

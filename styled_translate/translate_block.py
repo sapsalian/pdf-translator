@@ -1,5 +1,6 @@
 from typing import Dict, List
 from styled_translate.assign_style import SpanStyle
+from styled_translate.build_styled_lines import buildStyledLines
 from openai import OpenAI
 import re
 
@@ -186,5 +187,8 @@ def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
   
   translated_text = completion.choices[0].message.content
   styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
-  return styled_spans
+  styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
+  
+  block["styled_lines"] = styled_lines
+  return block
   

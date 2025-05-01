@@ -8,20 +8,20 @@ from draw_info.block_info import *
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import time
-from styled_translate.translate_with_style import translateWithStyleTest
+from styled_translate.translate_with_style import translateWithStyle
 
 def preProcessPage(page, model):
   # read page text as a dictionary, suppressing extra spaces in CJK fonts
     blocks = preProcess(page, model)
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
     
-    translateWithStyleTest(blocks)
+    translateWithStyle(blocks, page)
     
-    for b in blocks:
+    # for b in blocks:
         # print(b["bbox"])
-        drawBBox(b["bbox"], page)
+        # drawBBox(b["bbox"], page)
         # drawAlignmentLabel(page, b)
-        drawClassNameLable(page, b)
+        # drawClassNameLable(page, b)
       
         # for l in b["lines"]:
             # drawBBox(l["bbox"], page, 0.1)  
