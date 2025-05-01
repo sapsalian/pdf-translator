@@ -1,6 +1,7 @@
 from typing import Dict, List
 from styled_translate.assign_style import SpanStyle
 from openai import OpenAI
+import re
 
 client = OpenAI()
 
@@ -71,6 +72,74 @@ def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> s
 
 
 
+def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[str, int | str]]:
+    """
+    스타일 태그가 포함된 번역 텍스트를 파싱하여 styled span 리스트를 생성합니다.
+
+    입력 텍스트에는 다음과 같은 스타일 태그가 포함될 수 있습니다:
+        - [[3]]텍스트[[/3]]   → 스타일 ID 3
+        - [[s4]]텍스트[[/s4]] → 윗첨자 스타일, 스타일 ID 4
+
+    이 함수는 위와 같은 태그를 기준으로 텍스트를 분리하고,
+    각 텍스트 구간에 해당하는 style_id (int)를 부여합니다.
+    태그가 없는 일반 텍스트는 기본 스타일 ID(primary_style_id)를 부여합니다.
+
+    Args:
+        translated_text (str): 스타일 태그가 포함된 번역 결과 문자열
+        primary_style_id (int): 태그 없는 일반 텍스트에 부여할 기본 스타일 ID
+
+    Returns:
+        List[Dict[str, int | str]]: 스타일이 부여된 span 목록
+            예시: [{"style_id": 3, "text": "H"}, {"style_id": 1, "text": "입니다."}]
+    """
+
+    # 스타일 태그 패턴 정의
+    # [[s3]]text[[/s3]] 또는 [[2]]text[[/2]] 와 같은 구조를 캡처
+    pattern = re.compile(r'\[\[(s?\d+)\]\](.*?)\[\[/\1\]\]', re.DOTALL)
+
+    result = []         # 최종 styled span 리스트
+    last_index = 0      # 마지막으로 처리된 인덱스 위치
+
+    # 모든 스타일 태그를 순차적으로 탐색
+    for match in pattern.finditer(translated_text):
+        start, end = match.span()           # 현재 태그 블록의 전체 범위 (시작~끝)
+        style_tag = match.group(1)          # 태그 안의 스타일 ID (예: "s3" 또는 "4")
+        styled_text = match.group(2)        # 태그 안의 텍스트 내용
+
+        # 스타일 ID에서 접두어 's' 제거 후 int로 변환
+        style_id = int(style_tag.lstrip("s"))
+
+        # 태그 시작 전까지의 일반 텍스트가 있다면 처리
+        if start > last_index:
+            plain_text = translated_text[last_index:start]
+            if plain_text:
+                result.append({
+                    "style_id": primary_style_id,
+                    "text": plain_text
+                })
+
+        # 태그 안의 텍스트와 해당 스타일 ID 추가
+        result.append({
+            "style_id": style_id,
+            "text": styled_text
+        })
+
+        last_index = end  # 마지막 인덱스 갱신
+
+    # 마지막 태그 이후 남은 일반 텍스트 처리
+    if last_index < len(translated_text):
+        plain_text = translated_text[last_index:]
+        if plain_text:
+            result.append({
+                "style_id": primary_style_id,
+                "text": plain_text
+            })
+
+    return result
+
+
+
+
 
 
 INSTRUCTION = '''너는 세계 최고의 번역가야. 이번 번역은 아주 중요해. 잘하면 1,000만 달러를 받고, 못 하면 5,000만 달러를 물어내야 해. 절대 실수하면 안 돼.
@@ -102,17 +171,20 @@ INSTRUCTION = '''너는 세계 최고의 번역가야. 이번 번역은 아주 �
 
 '''
 
-def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> str:
-  original_text = blockTextWithStyleTags(block, style_dict)
+def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
+  styled_text = blockTextWithStyleTags(block, style_dict)
   
   completion = client.chat.completions.create(
       model="gpt-4o-mini",
       messages=[
           {
               "role": "user",
-              "content": INSTRUCTION + original_text
+              "content": INSTRUCTION + styled_text
           }
       ]
   )
   
-  return completion.choices[0].message.content
+  translated_text = completion.choices[0].message.content
+  styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
+  return styled_spans
+  
