@@ -8,14 +8,14 @@ from draw_info.block_info import *
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import time
-from styled_translate.assign_style import assignSpanStyleTest
+from styled_translate.translate_with_style import translateWithStyleTest
 
 def preProcessPage(page, model):
   # read page text as a dictionary, suppressing extra spaces in CJK fonts
     blocks = preProcess(page, model)
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
     
-    assignSpanStyleTest(blocks)
+    translateWithStyleTest(blocks)
     
     for b in blocks:
         # print(b["bbox"])
