@@ -17,14 +17,15 @@ def preProcessPage(page, model):
     
     translateWithStyle(blocks, page)
     
-    # for b in blocks:
+    for b in blocks:
+        print(b)
         # print(b["bbox"])
         # drawBBox(b["bbox"], page)
         # drawAlignmentLabel(page, b)
         # drawClassNameLable(page, b)
       
         # for l in b["lines"]:
-            # drawBBox(l["bbox"], page, 0.1)  
+        #     drawBBox(l["bbox"], page, 0.1)  
             # for s in l["spans"]:   
             #   drawBBox(s["bbox"], page, 0.2)
             

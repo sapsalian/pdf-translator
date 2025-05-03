@@ -11,6 +11,7 @@ def renderStyledSpans(blocks: List[Dict], style_dict: Dict[int, SpanStyle], page
         lines = block["lines"]  # 각 줄의 bbox
         styled_lines = block["styled_lines"]  # buildStyledLines 결과
         is_center_aligned = block.get("align", "left") == "center"
+        block_x0, _, block_x1, _ = block["bbox"]
 
         for line, styled_line in zip(lines, styled_lines):
             line_bbox = line["bbox"]
@@ -20,7 +21,8 @@ def renderStyledSpans(blocks: List[Dict], style_dict: Dict[int, SpanStyle], page
 
             # 중앙 정렬인 경우 여백 적용, 아니면 좌측 정렬
             if is_center_aligned:
-                line_start_x = line_x0 + (line_x1 - line_x0 - line_width) / 2
+                print(line_x0)
+                line_start_x = block_x0 + (block_x1 - block_x0 - line_width) / 2
             else:
                 line_start_x = line_x0
 
@@ -32,9 +34,12 @@ def renderStyledSpans(blocks: List[Dict], style_dict: Dict[int, SpanStyle], page
                 style = style_dict[style_id]
                 font_path = getFontPath(style)
                 font_name = getFontName(style)
+                
+                
+                print(text, style.x_gap_with_prev, style.y_offset, style.is_bold)
 
                 x = line_start_x + rel_x
-                y = baseline_y + style.y_offset  # y_offset 적용 (기본적으로 line의 y0 기준)
+                y = baseline_y - style.y_offset  # y_offset 적용 (기본적으로 line의 y0 기준)
                 
                 print(
                     "point=" + f'({x}, {y})',
