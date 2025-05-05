@@ -164,7 +164,7 @@ INSTRUCTION = '''너는 세계 최고의 번역가야. 이번 번역은 아주 �
 
 4. 전문 용어나, 고유 명사, 코드 등은 번역하지 말고 원문 그대로 출력해.
 
-5. 번역할 문장이 주어지지 않는다면 아무 문자도 출력하지 마.
+5. 번역할 문장이 빈 문자열이라면, 빈 문자열을 출력해.
 
 자, 그럼 아래 영어 문장을 번역해줘:
 
@@ -186,6 +186,7 @@ def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
   )
   
   translated_text = completion.choices[0].message.content
+  print(f'{styled_text}\n{translated_text}\n\n')
   styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
   styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
   

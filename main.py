@@ -17,8 +17,8 @@ def preProcessPage(page, model):
     
     translateWithStyle(blocks, page)
     
-    for b in blocks:
-        print(b)
+    # for b in blocks:
+        # print(b)
         # print(b["bbox"])
         # drawBBox(b["bbox"], page)
         # drawAlignmentLabel(page, b)
@@ -27,7 +27,7 @@ def preProcessPage(page, model):
         # for l in b["lines"]:
         #     drawBBox(l["bbox"], page, 0.1)  
             # for s in l["spans"]:   
-            #   drawBBox(s["bbox"], page, 0.2)
+              # drawBBox(s["bbox"], page, 0.2)
             
      # blocks = detect_objects_from_page(page)
     
@@ -82,7 +82,7 @@ def makeOutput(pdf_name):
   
   model = initModel()
   
-  for page in doc[0:1]:
+  for page in doc[2:3]:
     preProcessPage(page, model)
     
     

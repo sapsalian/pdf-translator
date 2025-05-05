@@ -36,20 +36,20 @@ def renderStyledSpans(blocks: List[Dict], style_dict: Dict[int, SpanStyle], page
                 font_name = getFontName(style)
                 
                 
-                print(text, style.x_gap_with_prev, style.y_offset, style.is_bold)
+                # print(text, style.x_gap_with_prev, style.y_offset, style.is_bold)
 
                 x = line_start_x + rel_x
                 y = baseline_y - style.y_offset  # y_offset 적용 (기본적으로 line의 y0 기준)
                 
-                print(
-                    "point=" + f'({x}, {y})',
-                    "text=" + text,
-                    "fontfile=" + font_path,
-                    "fontname=" + font_name,
-                    "fontsize=" + str(style.font_size),
-                    "color=" + str(style.font_color),
-                    "rotate=" + str(style.rotate),
-                    )
+                # print(
+                #     "point=" + f'({x}, {y})',
+                #     "text=" + text,
+                #     "fontfile=" + font_path,
+                #     "fontname=" + font_name,
+                #     "fontsize=" + str(style.font_size),
+                #     "color=" + str(style.font_color),
+                #     "rotate=" + str(style.rotate),
+                #     )
 
                 # 텍스트 삽입
                 page.insert_text(
