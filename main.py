@@ -15,12 +15,12 @@ def preProcessPage(page, model):
     blocks = preProcess(page, model)
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
     
-    # translateWithStyle(blocks, page)
+    translateWithStyle(blocks, page)
     
-    for b in blocks:
+    # for b in blocks:
         # print(b)
         # print(b["bbox"])
-        drawBBox(b["bbox"], page)
+        # drawBBox(b["bbox"], page)
         # drawAlignmentLabel(page, b)
         # drawClassNameLable(page, b)
       
@@ -82,7 +82,7 @@ def makeOutput(pdf_name):
   
   model = initModel()
   
-  for page in doc[0:1]:
+  for page in doc[3:4]:
     preProcessPage(page, model)
     
     

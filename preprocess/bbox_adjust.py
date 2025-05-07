@@ -1,13 +1,85 @@
 from yolo.yolo_inference.detection import detect_objects_from_page
 from text_extract.text_extract import blockText
 
-def adjustBlockBbox(block, left_bound, right_bound):
-  block_bbox = block["bbox"]
-  block["bbox"] = (left_bound, block_bbox[1], right_bound, block_bbox[3])
-  
-  for line in block.get("lines", []):
-    line_bbox = line["bbox"]
-    line["bbox"] = (line_bbox[0], line_bbox[1], right_bound, line_bbox[3])
+def bboxXOverlapRatio(bbox1, bbox2):
+    """
+    bbox1, bbox2의 x축 방향 겹치는 비율 계산.
+    기준: 두 bbox의 x축 너비 합집합 (union)
+    """
+    x0_1, _, x1_1, _ = bbox1
+    x0_2, _, x1_2, _ = bbox2
+
+    # 겹치는 길이
+    overlap = max(0, min(x1_1, x1_2) - max(x0_1, x0_2))
+    # union 너비 = (두 bbox를 모두 포함하는 구간의 길이)
+    union_width = max(x1_1, x1_2) - min(x0_1, x0_2)
+
+    return overlap / union_width if union_width > 0 else 0
+
+
+
+def bboxYLength(bbox):
+    """
+    bbox의 y축 길이 계산.
+    """
+    return bbox[3] - bbox[1]
+
+
+def adjustLinesIfOverlap(prevLine, currLine, overlapThreshold=0.7):
+    """
+    prevLine과 currLine의 x축 겹침 비율과 y축 위치 관계를 확인하고,
+    조건을 만족하면 y 경계를 y축 길이가 더 짧은 쪽에 맞춰 조정.
+    """
+    prevBBox = prevLine["bbox"]
+    currBBox = currLine["bbox"]
+
+    xOverlap = bboxXOverlapRatio(prevBBox, currBBox)
+
+    # x축 70% 이상 겹치고, currLine의 위쪽 경계가 prevLine 아래쪽보다 위인지 확인
+    if xOverlap >= overlapThreshold and currBBox[1] < prevBBox[3]:
+        prevHeight = bboxYLength(prevBBox)
+        currHeight = bboxYLength(currBBox)
+
+        if currHeight < prevHeight:
+            # currLine 쪽 y 경계에 prevLine 맞춤
+            prevLine["bbox"] = (
+                prevBBox[0], 
+                prevBBox[1], 
+                prevBBox[2], 
+                currBBox[1]
+            )
+        else:
+            # prevLine 쪽 y 경계에 currLine 맞춤
+            currLine["bbox"] = (
+                currBBox[0], 
+                prevBBox[3], 
+                currBBox[2], 
+                currBBox[3]
+            )
+
+
+def adjustBlockBbox(block, leftBound, rightBound):
+    """
+    block 및 line bbox 조정.
+    - 좌우 경계(leftBound, rightBound) 고정
+    - x축 겹침 70% 이상 + y축 꼬임 → y축 짧은 쪽 기준 정렬
+    """
+    blockBBox = block["bbox"]
+    block["bbox"] = (leftBound, blockBBox[1], rightBound, blockBBox[3])
+
+    lines = block.get("lines", [])
+    prevLine = None
+
+    for line in lines:
+        lineBBox = line["bbox"]
+        # line 우측 경계 고정
+        line["bbox"] = (lineBBox[0], lineBBox[1], rightBound, lineBBox[3])
+
+        if prevLine:
+            adjustLinesIfOverlap(prevLine, line)
+
+        prevLine = line
+
 
 def adjustBlocks(blocks, adjust_objects):
     """

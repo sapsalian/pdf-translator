@@ -1,6 +1,7 @@
 from typing import Dict, List
 from styled_translate.assign_style import SpanStyle
 from styled_translate.build_styled_lines import buildStyledLines
+from text_extract.text_extract import blockText
 from openai import OpenAI
 import re
 
@@ -75,68 +76,72 @@ def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> s
 
 def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[str, int | str]]:
     """
-    스타일 태그가 포함된 번역 텍스트를 파싱하여 styled span 리스트를 생성합니다.
-
-    입력 텍스트에는 다음과 같은 스타일 태그가 포함될 수 있습니다:
-        - [[3]]텍스트[[/3]]   → 스타일 ID 3
-        - [[s4]]텍스트[[/s4]] → 윗첨자 스타일, 스타일 ID 4
-
-    이 함수는 위와 같은 태그를 기준으로 텍스트를 분리하고,
-    각 텍스트 구간에 해당하는 style_id (int)를 부여합니다.
-    태그가 없는 일반 텍스트는 기본 스타일 ID(primary_style_id)를 부여합니다.
+    stack 없이 현재 style 번호만으로 동작.
+    
+    동작 방식:
+    - 열림 태그: 현재까지 text flush, current_style 업데이트
+    - 닫힘 태그:
+        - current_style == 닫힘 style → text flush, primary_style로 복귀
+        - current_style != 닫힘 style → current_style만 primary_style로 복귀, 닫힘 태그 무시
 
     Args:
-        translated_text (str): 스타일 태그가 포함된 번역 결과 문자열
-        primary_style_id (int): 태그 없는 일반 텍스트에 부여할 기본 스타일 ID
+        translated_text (str): [[5]]텍스트[[/5]], [[s4]]텍스트[[/s4]] 형식 문자열
+        primary_style_id (int): 기본 스타일 ID
 
     Returns:
-        List[Dict[str, int | str]]: 스타일이 부여된 span 목록
-            예시: [{"style_id": 3, "text": "H"}, {"style_id": 1, "text": "입니다."}]
+        List[Dict[str, int | str]]: 스타일 적용된 span 리스트
     """
+    
+    # [[5]], [[s4]], [[/5]], [[/s4]] 같은 태그를 잡는 패턴
+    tag_pattern = re.compile(r'\[\[(\/?s?\d+)\]\]')
 
-    # 스타일 태그 패턴 정의
-    # [[s3]]text[[/s3]] 또는 [[2]]text[[/2]] 와 같은 구조를 캡처
-    pattern = re.compile(r'\[\[(s?\d+)\]\](.*?)\[\[/\1\]\]', re.DOTALL)
+    result = []          # 최종 결과를 저장할 리스트
+    last_index = 0      # 마지막으로 처리한 문자열 인덱스
+    current_style = primary_style_id  # 현재 적용할 스타일 ID
 
-    result = []         # 최종 styled span 리스트
-    last_index = 0      # 마지막으로 처리된 인덱스 위치
+    # translated_text에서 태그 패턴을 모두 찾음
+    for match in tag_pattern.finditer(translated_text):
+        tag = match.group(1)        # '5', 's4', '/5', '/s4' 같은 태그 내용 추출
+        start, end = match.span()   # 태그의 시작-끝 인덱스 위치 추출
+        is_closing = tag.startswith('/')  # 닫힘 태그인지 판별 (예: '/5', '/s4')
+        clean_tag = tag.lstrip('/')       # '/' 제거 → '5' 또는 's4'
+        style_id = int(clean_tag.lstrip('s'))  # 's'도 제거 후 int 변환 → 5 또는 4
+        
+        
+        '''
+        여는 태그면 
+          - 앞에 있는거 싹 다 모아서 primary_style 지정
+          - current_style 갱신
+        닫는 태그면 
+          - 앞에 있는거 싹 다 모아서, 현재 style이랑 일치하면 현재 style, 아니면 primary로 지정
+          - current_style을 primary로 갱신 
+        '''
+        
+        text = translated_text[last_index:start]
+        
+        if is_closing:
+            if text:
+                result.append({"style_id": (current_style if current_style == style_id else primary_style_id) , "text": text})
+            current_style = primary_style_id
+        else:
+            if text:
+                result.append({"style_id": primary_style_id, "text": text})
+            current_style = style_id
 
-    # 모든 스타일 태그를 순차적으로 탐색
-    for match in pattern.finditer(translated_text):
-        start, end = match.span()           # 현재 태그 블록의 전체 범위 (시작~끝)
-        style_tag = match.group(1)          # 태그 안의 스타일 ID (예: "s3" 또는 "4")
-        styled_text = match.group(2)        # 태그 안의 텍스트 내용
+        # 마지막으로 처리한 인덱스 갱신
+        last_index = end
 
-        # 스타일 ID에서 접두어 's' 제거 후 int로 변환
-        style_id = int(style_tag.lstrip("s"))
-
-        # 태그 시작 전까지의 일반 텍스트가 있다면 처리
-        if start > last_index:
-            plain_text = translated_text[last_index:start]
-            if plain_text:
-                result.append({
-                    "style_id": primary_style_id,
-                    "text": plain_text
-                })
-
-        # 태그 안의 텍스트와 해당 스타일 ID 추가
-        result.append({
-            "style_id": style_id,
-            "text": styled_text
-        })
-
-        last_index = end  # 마지막 인덱스 갱신
-
-    # 마지막 태그 이후 남은 일반 텍스트 처리
+    # 루프 끝난 후 마지막 남은 텍스트 처리
     if last_index < len(translated_text):
-        plain_text = translated_text[last_index:]
-        if plain_text:
-            result.append({
-                "style_id": primary_style_id,
-                "text": plain_text
-            })
+        text = translated_text[last_index:]
+        if text:
+            result.append({"style_id": primary_style_id, "text": text})
 
     return result
+
+
+
+
 
 
 
@@ -152,6 +157,8 @@ SYSTEM_MESSAGE = '''너는 세계 최고의 번역가야. 이번 번역은 아�
 또한, 입력 문장에는 `[[n]]...[[/n]]` 또는 `[[sN]]...[[/sN]]` 형식의 스타일 태그가 포함될 수 있어. 이 태그는 번역 결과에서 반드시 동일한 형태로 유지되어야 해. 절대 태그 구조를 변경하거나, 태그를 없애거나, 태그 위치를 바꾸면 안 돼.  
 특히 `[[sN]]...[[/sN]]`은 윗첨자를 의미하며, 해당 내용은 번역하지 말고 해당 위치 그대로 윗첨자 형태로 남겨둬야 해.
 
+`[[n]]...[[/n]]` 또는 `[[sN]]...[[/sN]]` 형식의 스타일 태그는 반드시 짝이 맞아야 해. 여는 태그와 닫는 태그 하나만 존재해서 짝이 맞지 않게 되는 경우는 절대로 없도록 해.
+
 만약 이해되지 않는 문자가 있다면 삭제하지 말고, 의미상 적절하다 생각되는 위치에 원래 문자 그대로 포함시켜 줘. 억지로 번역하거나 바꾸려 하지 마.
 
 번역은 다음 기준을 따라:
@@ -164,12 +171,16 @@ SYSTEM_MESSAGE = '''너는 세계 최고의 번역가야. 이번 번역은 아�
 
 4. 전문 용어나, 고유 명사, 코드 등은 번역하지 말고 원문 그대로 출력해.
 
-5. 번역할 문장이 빈 문자열이라면, 아무것도 출력하지 마. 진짜 말 그대로 빈 문자열을 반환하면 돼.
+5. 입력이 주어지지 않는다면, 아무것도 출력하지 마.
 
 '''
 
 def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
+  if not block.get("to_be_translated", False):
+    return block
+  
   styled_text = blockTextWithStyleTags(block, style_dict)
+  
   
   completion = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -180,9 +191,35 @@ def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
     )
   
   translated_text = completion.choices[0].message.content
+  if translated_text == '':
+      block["to_be_translated"] = False
+      return block
+  
+  # print(f'{styled_text}\n{translated_text}\n\n')
   styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
+  # print(style_dict)
+  # print(styled_spans)
   styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
   
   block["styled_lines"] = styled_lines
   return block
   
+  
+def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], page) -> List[Dict]:
+    for block in blocks:
+        err_count = 0
+        while True:
+            # 에러 여러번 생겼으면 그 블락은 그냥 원문으로 놔두기.
+            if err_count >= 5:
+                block["to_be_translated"] = False
+            try:
+                # 호출되고 나면 내부에 styled_lines 들어가 있음.
+                translateBlock(block, style_dict)
+                break  # 성공하면 반복 종료
+            except Exception as e:
+                err_count += 1
+                print(f"오류 발생: {e}, 재시도합니다...")
+                print(f"오류 발생 위치: ")
+                print(f"page: {page.number + 1}, block: {blockText(block)}")
+    
+    return blocks

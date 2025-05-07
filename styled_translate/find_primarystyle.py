@@ -4,7 +4,7 @@ from styled_translate.assign_style import SpanStyle
 
 def assignPrimaryStyleId(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle']) -> List[Dict]:
     """
-    각 block 내에서 superscript가 아닌 span 중 가장 많이 등장한 style_id를
+    각 block 내에서 superscript가 아닌 span 중 가장 많이 등장한(text 길이 기준) style_id를
     'primary_style_id'로 지정합니다.
 
     Args:
@@ -25,7 +25,7 @@ def assignPrimaryStyleId(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'])
 
                 style = style_dict.get(style_id)
                 if style and not style.is_superscript:
-                    style_counter[style_id] += 1
+                    style_counter[style_id] += len(span["text"])
 
         if style_counter:
             primary_style_id = style_counter.most_common(1)[0][0]

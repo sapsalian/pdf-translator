@@ -2,7 +2,7 @@ from typing import List, Dict, Tuple
 import pymupdf
 from styled_translate.get_font import getFontPath, getFontName
 from styled_translate.assign_style import SpanStyle, dirToRotation
-from text_extract.text_extract import blockText
+from text_edit.text_delete import deleteTextBlocks
 
 def getRotatedBbox(original_bbox, rotate):
   x0, y0, x1, y1 = original_bbox
@@ -49,56 +49,64 @@ def getDrawPosition(line_start_hor, line_base_vert, rel_x, rel_y, rotate):
         
         
     
+
+def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], page: pymupdf.Page):
+    lines = block["lines"]  # 각 줄의 bbox
+    styled_lines = block.get("styled_lines", [])  # buildStyledLines 결과
     
+    if len(styled_lines) == 0:
+        return
+
+    for line, styled_line in zip(lines, styled_lines):
+
+        dir = line["dir"]
+        rotate = dirToRotation(dir)
+        
+        line_start_hor = getLineStartHor(block, line, styled_line, rotate)
+        line_base_vert = getRotatedBbox(line["bbox"], rotate)[3]
+
+        for span in styled_line["positioned_spans"]:
+            style_id = span["style_id"]
+            text = span["text"]
+            rel_x = span["rel_x"]
+
+            style = style_dict[style_id]
+            font_path = getFontPath(style)
+            font_name = getFontName(style)
+            
+            
+            # print(text, style.x_gap_with_prev, style.y_offset, style.is_bold)
+
+            x, y = getDrawPosition(line_start_hor, line_base_vert, rel_x, style.y_offset, rotate)
+            
+            # print(
+            #     "point=" + f'({x}, {y})',
+            #     "text=" + text,
+            #     "fontfile=" + font_path,
+            #     "fontname=" + font_name,
+            #     "fontsize=" + str(style.font_size),
+            #     "color=" + str(style.font_color),
+            #     "rotate=" + str(style.rotate),
+            #     )
+
+            # 텍스트 삽입
+            page.insert_text(
+                point=(x, y),
+                text=text,
+                fontfile=font_path,
+                fontname=font_name,
+                fontsize=style.font_size,
+                color=style.font_color,
+                rotate=style.rotate,
+            )
 
 # 각 block의 styled_lines를 이용하여 page에 텍스트를 그리는 함수
-def renderStyledSpans(blocks: List[Dict], style_dict: Dict[int, SpanStyle], page: pymupdf.Page):
+def replaceTranslatedBlocks(blocks: List[Dict], style_dict: Dict[int, SpanStyle], page: pymupdf.Page):
+    deleteTextBlocks(page, [block for block in blocks if block["to_be_translated"]])
+    
     for block in blocks:
-        lines = block["lines"]  # 각 줄의 bbox
-        styled_lines = block["styled_lines"]  # buildStyledLines 결과
-        
+        if block["to_be_translated"]:
+            drawStyledLines(block, style_dict, page)
 
-        for line, styled_line in zip(lines, styled_lines):
-
-            dir = line["dir"]
-            rotate = dirToRotation(dir)
-            
-            line_start_hor = getLineStartHor(block, line, styled_line, rotate)
-            line_base_vert = getRotatedBbox(line["bbox"], rotate)[3]
-
-            for span in styled_line["positioned_spans"]:
-                style_id = span["style_id"]
-                text = span["text"]
-                rel_x = span["rel_x"]
-
-                style = style_dict[style_id]
-                font_path = getFontPath(style)
-                font_name = getFontName(style)
-                
-                
-                # print(text, style.x_gap_with_prev, style.y_offset, style.is_bold)
-
-                x, y = getDrawPosition(line_start_hor, line_base_vert, rel_x, style.y_offset, rotate)
-                
-                # print(
-                #     "point=" + f'({x}, {y})',
-                #     "text=" + text,
-                #     "fontfile=" + font_path,
-                #     "fontname=" + font_name,
-                #     "fontsize=" + str(style.font_size),
-                #     "color=" + str(style.font_color),
-                #     "rotate=" + str(style.rotate),
-                #     )
-
-                # 텍스트 삽입
-                page.insert_text(
-                    point=(x, y),
-                    text=text,
-                    fontfile=font_path,
-                    fontname=font_name,
-                    fontsize=style.font_size,
-                    color=style.font_color,
-                    rotate=style.rotate,
-                )
 
   
