@@ -56,7 +56,7 @@ def countLinesByLineBreak(styled_spans: List[Dict]):
     for span in styled_spans:
         text += span["text"]
         
-    return len(text.split('\n'))
+    return len(text.splitlines())
   
   
 

@@ -102,12 +102,12 @@ if __name__ == "__main__":
         for filename in os.listdir(input_folder):
             if filename.lower().endswith(".pdf"):
                 print(f"Processing: {filename}")
-                makeOutput(filename)
+                makeOutputUsingExecutor(filename)
     else:
         # 지정된 파일만 처리
         pdf_name = sys.argv[1]
         print(f"Processing: {pdf_name}")
-        makeOutput(pdf_name)
+        makeOutputUsingExecutor(pdf_name)
         
     end_time = time.time()  # 종료 시각 기록
 
