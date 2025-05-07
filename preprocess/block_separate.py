@@ -118,7 +118,7 @@ def separateBlock(block):
                 "lines": current_block
             })
             current_block = [line]
-            current_bbox = list(line["bbox"])  # 새 블록 시작 시 bbox 초기화
+            current_bbox = [line["bbox"][0], line["bbox"][1], block["bbox"][2], line["bbox"][3]]  # 새 블록 시작 시 bbox 초기화
         else:
             current_block.append(line)
             current_bbox = update_bbox(current_bbox, line["bbox"])  # 기존 bbox 확장

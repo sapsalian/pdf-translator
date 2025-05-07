@@ -42,6 +42,9 @@ def adjustBlocks(blocks, adjust_objects):
         block_bbox = block.get("bbox")
         if not block_bbox:
             continue  # bbox가 없는 경우는 건너뜀
+          
+        # block의 모든 line들을 block의 우측 경계에 맞게 수정
+        adjustBlockBbox(block, block_bbox[0], block_bbox[2])
 
         matching_adj_bboxes = []
 
@@ -90,8 +93,6 @@ def adjustBlocks(blocks, adjust_objects):
               # 만약 너비 교집합/합집합이 0.9 미만이면, 알고리즘의 블락이 잘못 잡힌 것
               # yolo에서 잡은 block 정보 이용해, block의 bbox를 수정
               adjustBlockBbox(block, left_bound, right_bound)
-            else:
-              adjustBlockBbox(block, block_bbox[0], block_bbox[2])
 
 
 
