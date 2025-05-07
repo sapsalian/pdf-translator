@@ -51,6 +51,13 @@ def getSpanChar(styled_span: Dict, char_idx: int) -> str:
    
     return text[char_idx]
   
+def countLinesByLineBreak(styled_spans: List[Dict]):
+    text = ""
+    for span in styled_spans:
+        text += span["text"]
+        
+    return len(text.split('\n'))
+  
   
 
 
@@ -79,6 +86,11 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
   new_span_text = ""  # 현재 positioned_span에 들어가기 위해 쌓인 text
   cur_x += getXgap(cur_span, style_dict)
   span_start_x = cur_x
+  
+  
+  # styled_spans 전체 text를 개행으로 나눴을 때 나오는 줄 수가 lines 줄 수랑 같은지 미리 확인해놓기.
+  # 같은 경우에는 bbox 넘어가는거 상관없이 개행에서만 다음 line으로 넘어가도록 적용해야함.
+  is_line_fixed = (countLinesByLineBreak(styled_spans) == len(lines))
   
   while True:
       
@@ -116,8 +128,9 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
           new_span_text = ""
           positioned_spans = []
       
-      elif cur_x + char_widths[char_idx] > x_limit:
+      elif (not is_line_fixed) and (cur_x + char_widths[char_idx] > x_limit):
           # 현재 character 더했을 때 bbox를 넘어가면, 현재 line 저장하고 다음 line bbox로 갱신.
+          # 개행에 따라서만 line 나눠줘야 하는 경우는 그냥 넘어가기
           # 그 후 char_idx 갱신되지 않고 그대로 두기 위해 continue
           
           # positioned span 만들어 positioned spans에 저장

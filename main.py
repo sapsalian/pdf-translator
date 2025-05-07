@@ -82,7 +82,7 @@ def makeOutput(pdf_name):
   
   model = initModel()
   
-  for page in doc[2:3]:
+  for page in doc[0:1]:
     preProcessPage(page, model)
     
     
