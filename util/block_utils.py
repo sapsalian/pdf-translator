@@ -52,8 +52,9 @@ def getBlockAlignment(block):
   
     # for문에서 나왔으면 모든 라인이 블락 중간에 있었다는 것.
   
-    # 모든 라인이 양 끝에 붙어 있으면, 블락 중간에 있었더라도 좌측 정렬로 판단.
     if all_lines_attached_to_sides:
+        if block.get("class_name", "Text") == 'Title':
+            return ALIGN_CENTER
         return ALIGN_LEFT
 
     # 붙어있는게 아니고 중앙 정렬 조건을 만족하면

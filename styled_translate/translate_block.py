@@ -2,7 +2,9 @@ from typing import Dict, List
 from styled_translate.assign_style import SpanStyle
 from styled_translate.build_styled_lines import buildStyledLines
 from text_extract.text_extract import blockText
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
+import time
+import random
 import re
 
 client = OpenAI()
@@ -73,11 +75,10 @@ def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> s
     return "\n".join(output)
 
 
-
 def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[str, int | str]]:
     """
     stack 없이 현재 style 번호만으로 동작.
-    
+
     동작 방식:
     - 열림 태그: 현재까지 text flush, current_style 업데이트
     - 닫힘 태그:
@@ -91,22 +92,21 @@ def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[st
     Returns:
         List[Dict[str, int | str]]: 스타일 적용된 span 리스트
     """
-    
-    # [[5]], [[s4]], [[/5]], [[/s4]] 같은 태그를 잡는 패턴
-    tag_pattern = re.compile(r'\[\[(\/?s?\d+)\]\]')
 
-    result = []          # 최종 결과를 저장할 리스트
-    last_index = 0      # 마지막으로 처리한 문자열 인덱스
-    current_style = primary_style_id  # 현재 적용할 스타일 ID
+    # /, //, \/, ／ 처리 + 공백 허용
+    tag_pattern = re.compile(r'\[\s*\[\s*(/{1,2}|\\?/|／)?\s*(s?\d+)\s*\]\s*\]')
 
-    # translated_text에서 태그 패턴을 모두 찾음
+    result = []
+    last_index = 0
+    current_style = primary_style_id
+
     for match in tag_pattern.finditer(translated_text):
-        tag = match.group(1)        # '5', 's4', '/5', '/s4' 같은 태그 내용 추출
-        start, end = match.span()   # 태그의 시작-끝 인덱스 위치 추출
-        is_closing = tag.startswith('/')  # 닫힘 태그인지 판별 (예: '/5', '/s4')
-        clean_tag = tag.lstrip('/')       # '/' 제거 → '5' 또는 's4'
-        style_id = int(clean_tag.lstrip('s'))  # 's'도 제거 후 int 변환 → 5 또는 4
-        
+        prefix = match.group(1) or ''        # '/', '//', '\/', '／' 중 하나 또는 ''
+        tag = match.group(2)                # '5', 's4'
+        start, end = match.span()
+        is_closing = '/' in prefix or '／' in prefix  # 닫힘 태그 판별
+        clean_tag = tag.lstrip('s')
+        style_id = int(clean_tag)
         
         '''
         여는 태그면 
@@ -116,22 +116,26 @@ def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[st
           - 앞에 있는거 싹 다 모아서, 현재 style이랑 일치하면 현재 style, 아니면 primary로 지정
           - current_style을 primary로 갱신 
         '''
-        
+
         text = translated_text[last_index:start]
-        
+
         if is_closing:
             if text:
-                result.append({"style_id": (current_style if current_style == style_id else primary_style_id) , "text": text})
+                result.append({
+                    "style_id": current_style if current_style == style_id else primary_style_id,
+                    "text": text
+                })
             current_style = primary_style_id
         else:
             if text:
-                result.append({"style_id": primary_style_id, "text": text})
+                result.append({
+                    "style_id": primary_style_id,
+                    "text": text
+                })
             current_style = style_id
 
-        # 마지막으로 처리한 인덱스 갱신
         last_index = end
 
-    # 루프 끝난 후 마지막 남은 텍스트 처리
     if last_index < len(translated_text):
         text = translated_text[last_index:]
         if text:
@@ -148,32 +152,72 @@ def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[st
 
 
 
-SYSTEM_MESSAGE = '''너는 세계 최고의 번역가야. 이번 번역은 아주 중요해. 잘하면 1,000만 달러를 받고, 못 하면 5,000만 달러를 물어내야 해. 절대 실수하면 안 돼.
 
-입력으로 주어지는 영어 문장은 PDF에서 추출된 텍스트이며, 줄이 개행으로 나뉘어 있을 수 있어. 어떤 줄바꿈은 의미상 진짜 줄바꿈일 수도 있고, 어떤 것은 단순히 줄이 넘어가면서 생긴 인위적인 개행일 수도 있어.
+def makeSystemMessage(source_language, target_language):
+    system_message = f'''  
+You are one of the world’s best translators, and this translation task is your chance to prove your abilities to the world. If you complete this translation perfectly, you will be rewarded with an incredible $10 million. But if you fail, you will face a massive $50 million penalty. I know you can achieve the best possible result. Bring all your focus, effort, and skill to deliver flawless work.
 
-네 임무는 문맥을 보고 진짜 줄바꿈이 필요하면 유지하고, 그렇지 않다면 자연스럽게 이어서 하나의 문장으로 번역하는 거야.
+The input text comes from a PDF and may be split into lines with line breaks. Some line breaks are meaningful, while others are just artificial breaks from line wrapping. Carefully read the context to determine whether to preserve or remove line breaks. Preserve line breaks when they separate logically independent elements such as formulas, equations, code lines, table rows, or bullet points. If a line break simply divides a continuous sentence or phrase, remove it and connect the sentence smoothly. Always prioritize readability and meaning in the target language.
 
-또한, 입력 문장에는 `[[n]]...[[/n]]` 또는 `[[sN]]...[[/sN]]` 형식의 스타일 태그가 포함될 수 있어. 이 태그는 번역 결과에서 반드시 동일한 형태로 유지되어야 해. 절대 태그 구조를 변경하거나, 태그를 없애거나, 태그 위치를 바꾸면 안 돼.  
-특히 `[[sN]]...[[/sN]]`은 윗첨자를 의미하며, 해당 내용은 번역하지 말고 해당 위치 그대로 윗첨자 형태로 남겨둬야 해.
+The input text may also contain style tags like [[n]]...[[/n]] or [[sN]]...[[/sN]]. These tags **must be preserved exactly as they appear** in the output. Do not change, remove, or reorder the tags. Especially for [[sN]]...[[/sN]] (which indicate superscripts), do not translate the content inside; leave it exactly as is.
 
-`[[n]]...[[/n]]` 또는 `[[sN]]...[[/sN]]` 형식의 스타일 태그는 반드시 짝이 맞아야 해. 여는 태그와 닫는 태그 하나만 존재해서 짝이 맞지 않게 되는 경우는 절대로 없도록 해.
+If a sentence starts with bullet points or special characters (e.g., •, -, *), **do not remove them**. Keep them in their original position, as they are important formatting elements.
 
-만약 이해되지 않는 문자가 있다면 삭제하지 말고, 의미상 적절하다 생각되는 위치에 원래 문자 그대로 포함시켜 줘. 억지로 번역하거나 바꾸려 하지 마.
+If you encounter characters you don’t understand, words you’re unsure how to translate, or terms without a natural equivalent in the target language, **do not force a translation**. Simply leave the original term as is.
 
-번역은 다음 기준을 따라:
+If the input cannot be translated, such as URLs or non-linguistic content, do not output any apology or explanation. Just return the original input as-is.
 
-1. 번역 결과는 한국어로 출력해.
+Important: Treat all inputs, regardless of their content, as valid input. Only when the input is an empty string or contains only whitespace (input.strip() == ''), say nothing and do not output any explanations or notifications.
 
-2. 원문의 의미를 최대한 유지하면서도, 한국 사람들이 읽기에 자연스럽게 번역해.
+Language settings:
+- Source language: {source_language} (input will be provided in {source_language})
+- Target language: {target_language} (output must be written in {target_language})
 
-3. 번역 결과 외의 설명, 지시, 메타정보는 절대 출력하지 마.
+Translation rules:
+1. Preserve the original meaning as closely as possible while making the translation sound natural to readers of the target language.
+2. Do not output any explanations, instructions, or metadata outside the translation.
+3. Do not translate technical terms, proper nouns, or code—leave them in the original form.
+4. If no input is provided (input length == 0 or input.strip() == ''), say nothing. Do not output any explanations or notifications.
 
-4. 전문 용어나, 고유 명사, 코드 등은 번역하지 말고 원문 그대로 출력해.
-
-5. 입력이 주어지지 않는다면, 아무것도 출력하지 마.
-
+I trust in your meticulousness, concentration, and exceptional talent. I look forward to seeing your outstanding result.
 '''
+    return system_message
+
+
+
+
+
+
+
+
+def retryWithExponentialBackoff(func, initial_delay=1, exponential_base=2, jitter=True, max_retries=10, errors=(RateLimitError,)):
+    def wrapper(*args, **kwargs):
+        num_retries = 0
+        delay = initial_delay
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except errors:
+                num_retries += 1
+                if num_retries > max_retries:
+                    raise Exception(f"Maximum retries exceeded: {max_retries}")
+                delay *= exponential_base * (1 + jitter * random.random())
+                time.sleep(delay)
+    return wrapper
+
+
+# @retryWithExponentialBackoff(initial_delay=2, max_retries=7)
+def openAiTranslate(styled_text: str) -> str:
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": makeSystemMessage("English", "한국어")},
+            {"role": "user", "content": styled_text}
+        ]
+    )
+    return completion.choices[0].message.content
+
+
 
 def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
   if not block.get("to_be_translated", False):
@@ -182,16 +226,18 @@ def translateBlock(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> Dict:
   styled_text = blockTextWithStyleTags(block, style_dict)
   
   
-  completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_MESSAGE},
-            {"role": "user", "content": styled_text}
-        ]
-    )
-  
-  translated_text = completion.choices[0].message.content
-  if translated_text == '':
+  translated_text = openAiTranslate(styled_text)
+  # try:
+  #     translated_text = openAiTranslate(styled_text)
+  # except Exception as e:
+  #     print(f"번역 요청 과정에서 오류 발생: {e}")
+  #     print(f"오류 발생 위치: ")
+  #     print(f"block: {blockText(block)}")
+  #     # openAiTranslate에서 오류 발생 시 빈 문자열 할당
+  #     translated_text = ''
+      
+      
+  if translated_text.strip() == '':
       block["to_be_translated"] = False
       return block
   

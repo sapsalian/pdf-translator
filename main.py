@@ -71,7 +71,7 @@ def makeOutputUsingExecutor(pdf_name):
     def process_page(page):
         preProcessPage(page, model)
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         executor.map(process_page, pages)
 
     doc.save("outputFile/output_" + pdf_name, garbage=3, clean=True, deflate=True)
@@ -82,7 +82,7 @@ def makeOutput(pdf_name):
   
   model = initModel()
   
-  for page in doc[3:4]:
+  for page in doc:
     preProcessPage(page, model)
     
     
