@@ -190,23 +190,25 @@ I trust in your meticulousness, concentration, and exceptional talent. I look fo
 
 
 
-def retryWithExponentialBackoff(func, initial_delay=1, exponential_base=2, jitter=True, max_retries=10, errors=(RateLimitError,)):
-    def wrapper(*args, **kwargs):
-        num_retries = 0
-        delay = initial_delay
-        while True:
-            try:
-                return func(*args, **kwargs)
-            except errors:
-                num_retries += 1
-                if num_retries > max_retries:
-                    raise Exception(f"Maximum retries exceeded: {max_retries}")
-                delay *= exponential_base * (1 + jitter * random.random())
-                time.sleep(delay)
-    return wrapper
+def retryWithExponentialBackoff(initial_delay=1, exponential_base=2, jitter=True, max_retries=10, errors=(RateLimitError,)):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            num_retries = 0
+            delay = initial_delay
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except errors:
+                    num_retries += 1
+                    if num_retries > max_retries:
+                        raise Exception(f"Maximum retries exceeded: {max_retries}")
+                    delay *= exponential_base * (1 + jitter * random.random())
+                    time.sleep(delay)
+        return wrapper
+    return decorator
 
 
-# @retryWithExponentialBackoff(initial_delay=2, max_retries=7)
+@retryWithExponentialBackoff(initial_delay=2, max_retries=7)
 def openAiTranslate(styled_text: str) -> str:
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
