@@ -5,7 +5,6 @@ from yolo.yolo_inference.model_init import initModel
 from text_extract.text_extract import blockText
 import sys, os
 from draw_info.block_info import *
-import threading
 from concurrent.futures import ThreadPoolExecutor
 import time
 from styled_translate.translate_with_style import translateWithStyle
@@ -29,12 +28,8 @@ def preProcessPage(page, model):
             # for s in l["spans"]:   
               # drawBBox(s["bbox"], page, 0.2)
             
-     # blocks = detect_objects_from_page(page)
-    
-    # for b in blocks:
-    #     print(b["bbox"], b["class_name"])
-    #     drawBBox(b["bbox"], page)
-    #     draw_alignment_label(page, b)
+     # blocks = detect_objects_from_page(page)odel)
+
         # print(blockText(b))
       
         # for l in b["lines"]:
@@ -42,25 +37,7 @@ def preProcessPage(page, model):
             # for s in l["spans"]:   
             #   drawBBox(s["bbox"], page, 0.2)
       
-'''
 
-def makeOutputUsingThreads(pdf_name):
-  doc = pymupdf.open("inputFile/" + pdf_name)
-  
-  model = initModel()
-  
-  threads = []
-  for page in doc:
-    t = threading.Thread(target=preProcessPage, args=(page, model))
-    threads.append(t)
-    t.start()
-    
-  for t in threads:
-    t.join()
-    
-  doc.save("outputFile/output_" + pdf_name, garbage=3, clean=True, deflate=True)
-
-'''
 
 def makeOutputUsingExecutor(pdf_name):
     doc = pymupdf.open("inputFile/" + pdf_name)

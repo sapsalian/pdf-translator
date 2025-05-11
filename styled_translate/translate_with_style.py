@@ -1,6 +1,7 @@
 from styled_translate.assign_style import assignSpanStyle
 from styled_translate.find_primarystyle import assignPrimaryStyleId
-from styled_translate.translate_block import translateBlock, blockTextWithStyleTags, makeTranslatedStyledSpans
+from styled_translate.translate_block import translateBlock, blockTextWithStyleTags
+from styled_translate.translate_blocks import makeTranslatedStyledSpans
 from styled_translate.draw_styled_blocks import replaceTranslatedBlocks
 from styled_translate.mark_to_be_translated import assignToBeTranslated
 
