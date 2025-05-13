@@ -1,5 +1,6 @@
 import pymupdf
 from preprocess.preprocess import preProcess
+from preprocess.paged_info import getPageInfos
 from text_extract.draw_bbox import drawBBox
 from yolo.yolo_inference.model_init import initModel
 from text_extract.text_extract import blockText
@@ -8,13 +9,14 @@ from draw_info.block_info import *
 from concurrent.futures import ThreadPoolExecutor
 import time
 from styled_translate.translate_with_style import translateWithStyle
+from styled_translate.draw_styled_blocks import replaceTranslatedFile
 
-def preProcessPage(page, model):
+def preProcessPage(page_info):
   # read page text as a dictionary, suppressing extra spaces in CJK fonts
-    blocks = preProcess(page, model)
+    blocks = preProcess(page_info)
     # blocks = page.get_text("dict", flags=1, sort=True)["blocks"] 
     
-    translateWithStyle(blocks, page)
+    translateWithStyle(page_info)
     
     # for b in blocks:
         # print(b)
@@ -36,34 +38,40 @@ def preProcessPage(page, model):
             # drawBBox(l["bbox"], page, 0.1)  
             # for s in l["spans"]:   
             #   drawBBox(s["bbox"], page, 0.2)
+            
       
 
 
 def makeOutputUsingExecutor(pdf_name):
-    doc = pymupdf.open("inputFile/" + pdf_name)
-    pages = list(doc)
+    file_path = "inputFile/" + pdf_name
 
-    model = initModel()
+    page_infos = getPageInfos(file_path)
     
-    def process_page(page):
-        preProcessPage(page, model)
+    def process_page(page_info):
+        preProcessPage(page_info)
 
     with ThreadPoolExecutor(max_workers=8) as executor:
-        executor.map(process_page, pages)
+        executor.map(process_page, page_infos)
+    
+    output_path = "outputFile/output_" + pdf_name
+    replaceTranslatedFile(page_infos, file_path, output_path)
+    
 
-    doc.save("outputFile/output_" + pdf_name, garbage=3, clean=True, deflate=True)
     
 
 def makeOutput(pdf_name):
-  doc = pymupdf.open("inputFile/" + pdf_name)
+    file_path = "inputFile/" + pdf_name
+
+    page_infos = getPageInfos(file_path)
   
-  model = initModel()
-  
-  for page in doc:
-    preProcessPage(page, model)
+    for page_info in page_infos:
+        preProcessPage(page_info)
+        
+    output_path = "outputFile/output_" + pdf_name
+    replaceTranslatedFile(page_infos, file_path, output_path)
+        
     
     
-  doc.save("outputFile/output_" + pdf_name, garbage=3, clean=True, deflate=True)
 
 
 

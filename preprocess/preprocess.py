@@ -7,37 +7,31 @@ from preprocess.bbox_adjust import adjustBlocksFromYolo
 from preprocess.assign_classname import assignClassNameToBlocks
 from preprocess.split_special_blocks import splitSpecialBlocks
 from preprocess.clean_blocks import cleanBlocks
-from yolo.yolo_inference.detect import detectObjectFromPage
-
-'''
-1. 블록 병합
-2. 라인 병합
-3. 블록 다시 나누기
-'''
 
 
-'''---------------------preprocess-----------------------'''
 
-def preProcess(page, model):
-  yolo_objects = detectObjectFromPage(page, model)
-  
-  blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
-  blocks = cleanBlocks(blocks)
-  
-  assignClassNameToBlocks(blocks, yolo_objects)
-  
-  blocks = mergeContinuosBlocks(blocks)
-  blocks = mergeContinuosLines(blocks)
-  
-  blocks = splitSpecialBlocks(blocks)
-  
-  assignAlignToBlocks(blocks) 
-  
-  blocks = extractTrueBlocks(blocks) 
-  
-  adjustBlocksFromYolo(blocks, yolo_objects)
-  
-  return blocks
+def preProcess(page_info):
+    blocks = page_info.get("blocks", [])
+    yolo_objects = page_info.get("yolo_objects", [])
+    print(yolo_objects)
+    links = page_info.get("links", [])
+    
+    blocks = cleanBlocks(blocks)
+    
+    assignClassNameToBlocks(blocks, yolo_objects)
+    
+    blocks = mergeContinuosBlocks(blocks)
+    blocks = mergeContinuosLines(blocks)
+    
+    blocks = splitSpecialBlocks(blocks)
+    
+    assignAlignToBlocks(blocks) 
+    
+    blocks = extractTrueBlocks(blocks) 
+    
+    adjustBlocksFromYolo(blocks, yolo_objects)
+    
+    return blocks
 
 
 '''-----------------------utility----------------------'''
@@ -50,10 +44,10 @@ def drawBBox(bbox, page, radius=None):
   
   
 def lineText(line) :
-  text = ""
-  for s in line["spans"]:
+    text = ""
+    for s in line["spans"]:
       text += s["text"]
-  return text
+    return text
 
 def blockText(block):
   text = ""

@@ -254,7 +254,7 @@ def openAiTranslate(payload: list) -> List[TranslationItem]:
     json_response = json.loads(completion.choices[0].message.content)
     return adapter.validate_python(json_response["translations"])
 
-def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], page) -> List[Dict]:
+def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], page_num) -> List[Dict]:
     grouped_blocks = []
     current_group = []
     current_length = 0
@@ -302,7 +302,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                         block["styled_lines"] = styled_lines
 
                     except Exception as block_error:
-                        print(f"블럭 처리 실패 (block_num {idx}, page {page.number + 1}): {block_error}")
+                        print(f"블럭 처리 실패 (block_num {idx}, page {page_num + 1}): {block_error}")
                         block["to_be_translated"] = False
                         block_error_occurred = True
                         break
@@ -314,7 +314,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
 
             except Exception as e:
                 err_count += 1
-                print(f"그룹 번역 오류: {e}, 재시도 {err_count}/5 (page {page.number + 1})")
+                print(f"그룹 번역 오류: {e}, 재시도 {err_count}/5 (page {page_num})")
                 if err_count >= 5:
                     print(f"5회 실패")
 

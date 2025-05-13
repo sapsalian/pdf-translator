@@ -1,4 +1,3 @@
-from yolo.yolo_inference.detection import detect_objects_from_page
 from text_extract.text_extract import blockText
 
 def bboxXOverlapRatio(bbox1, bbox2):

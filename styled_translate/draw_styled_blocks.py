@@ -109,4 +109,20 @@ def replaceTranslatedBlocks(blocks: List[Dict], style_dict: Dict[int, SpanStyle]
             drawStyledLines(block, style_dict, page)
 
 
+def replaceTranslatedFile(page_infos, file_path, output_path):
+    page_info_map = {page_info["page_num"]: page_info for page_info in page_infos}
+    
+    with pymupdf.open(file_path) as doc:
+        for page_num, page in enumerate(doc, start=1):
+            page_info = page_info_map[page_num]
+            
+            blocks = page_info["blocks"]
+            style_dict = page_info["style_dict"]
+            
+            replaceTranslatedBlocks(blocks, style_dict, page)
+        
+        doc.save(output_path, garbage=3, clean=True, deflate=True)
+    
+    
+
   
