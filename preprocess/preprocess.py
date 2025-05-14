@@ -13,7 +13,6 @@ from preprocess.clean_blocks import cleanBlocks
 def preProcess(page_info):
     blocks = page_info.get("blocks", [])
     yolo_objects = page_info.get("yolo_objects", [])
-    print(yolo_objects)
     links = page_info.get("links", [])
     
     blocks = cleanBlocks(blocks)
@@ -31,7 +30,7 @@ def preProcess(page_info):
     
     adjustBlocksFromYolo(blocks, yolo_objects)
     
-    return blocks
+    page_info["blocks"] = blocks
 
 
 '''-----------------------utility----------------------'''
@@ -74,4 +73,11 @@ if __name__ == "__main__":
             #   drawBBox(s["bbox"], page, 0.2)
       
   doc.save("_b.pdf", garbage=3, clean=True, deflate=True)
+
+
+def preProcessPageInfos(page_infos):
+    for page_info in page_infos:
+        preProcess(page_info)
+
+    return page_infos
   

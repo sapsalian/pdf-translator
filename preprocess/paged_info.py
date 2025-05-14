@@ -1,5 +1,7 @@
 import pymupdf
 from yolo.yolo_inference.detection import detectObjectsFromFile
+from preprocess.pdf_summary import summarizePdfInChunks, summarizePdfInChunksParallel
+from draw.draw_blocks import drawBlocks
 
 
 def getYoloObjects(file_path):
@@ -50,6 +52,8 @@ def getPageInfos(file_path):
     '''
     results = []
     paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
+    
+    summary_dict = {s["page"]: s["summary"] for s in summarizePdfInChunksParallel(file_path, "English")}
 
     with pymupdf.open(file_path) as doc:
         for page_num, page in enumerate(doc, start=1):
@@ -63,7 +67,8 @@ def getPageInfos(file_path):
                 "page_num": page_num,
                 "blocks": blocks,
                 "links": links,
-                "yolo_objects": paged_yolo.get(page_num, [])
+                "yolo_objects": paged_yolo.get(page_num, []),
+                "summary": summary_dict.get(page_num, "")
             })
 
     return results

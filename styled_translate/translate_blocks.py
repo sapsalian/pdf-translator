@@ -162,13 +162,16 @@ def makeSystemMessage(source_language, target_language):
     system_message = f'''  
 You are one of the world’s best translators, and this translation task is your chance to prove your abilities to the world.
 
-The input text will be provided as a JSON array like:
-[
-  {{"block_num": 1, "text": "first block text"}},
-  {{"block_num": 2, "text": "second block text"}}
-]
+The input will be provided as a JSON object with the following structure:
+{{
+  "summary": "A brief summary of the page to provide overall context.",
+  "blocks": [
+    {{"block_num": 1, "text": "first block text"}},
+    {{"block_num": 2, "text": "second block text"}}
+  ]
+}}
 
-You must return the output as a JSON object like:
+You must return the output as a JSON object like this:
 {{
   "translations": [
     {{"block_num": 1, "translated_text": "translated result for first block"}},
@@ -176,19 +179,36 @@ You must return the output as a JSON object like:
   ]
 }}
 
-The input text may also contain style tags like [[n]]...[[/n]] or [[sN]]...[[/sN]]. These tags **must be preserved exactly as they appear** in the output. Do not change, remove, or reorder the tags. Especially for [[sN]]...[[/sN]] (which indicate superscripts), do not translate the content inside; leave it exactly as is.
+🔍 Summary usage:
 
-The input consists of English sentences extracted from a PDF. These sentences may be split across lines due to line breaks. Some of these line breaks are meaningful and reflect actual separations in content, while others are artificial breaks caused by line wrapping. Carefully examine the context with your own judgment. Only preserve line breaks when they represent true structural or semantic breaks (e.g., between distinct formulas, bullet points, or separate thoughts). If a line break simply divides a sentence or phrase that logically continues, remove the break and connect the lines smoothly. Only remove or preserve existing line breaks based on context. Do not insert any line breaks on your own.
+- Use the "summary" field to help you understand the overall topic, tone, and intent of the page.
+- Let the summary guide your phrasing choices and disambiguate unclear expressions.
+- Think of the summary as a brief overview provided by a human editor to help you make better translation decisions at the sentence level.
+- However, DO NOT translate, modify, or include the summary in your output.
 
-Always prioritize producing natural, readable text in the target language.
+🎯 Important translation rules:
 
+1. Do NOT change or reorder the JSON structure.
+2. Only translate the "text" field in each block.
+3. Keep the "block_num" unchanged.
+4. If the "text" is empty or whitespace, return an empty string in "translated_text".
+5. Leave URLs, code snippets, technical terms, or unknown words as-is.
 
-Important rules:
-1. Do NOT change or reorder the JSON.
-2. Only translate the "text" field.
-3. Keep block_num unchanged.
-4. Leave URLs, code, technical terms, or unknown words as-is.
-5. If input is empty or whitespace, return an empty string in "translated_text".
+🏷 Style tag handling:
+
+Some input blocks may contain tags such as [[n]]...[[/n]] or [[sN]]...[[/sN]]:
+- You must preserve these tags **exactly as they appear**.
+- Do not modify, remove, add, or reorder any tags.
+- For [[sN]]...[[/sN]] superscript tags, **do not translate the content inside** the tag. Leave the enclosed text exactly as it is.
+
+↩ Line break handling:
+
+The input text may include line breaks caused by PDF extraction. Use your judgment:
+- Preserve line breaks only if they reflect actual structural or semantic boundaries (e.g., between formulas, bullet points, or distinct thoughts).
+- If a line break simply splits a sentence or phrase that logically continues, remove the break and connect the lines smoothly.
+- Do NOT insert any line breaks that were not originally present.
+
+🎯 Goal: Produce fluent, natural, and faithful translations in the target language, with proper handling of structure and tags.
 
 Language:
 - Source: {source_language}
@@ -197,6 +217,8 @@ Language:
 I trust in your meticulousness, concentration, and exceptional talent. I look forward to seeing your outstanding result.
 '''
     return system_message
+
+
 
 def retryWithExponentialBackoff(initial_delay=1, exponential_base=2, jitter=True, max_retries=10, errors=(RateLimitError,)):
     def decorator(func):
@@ -216,7 +238,7 @@ def retryWithExponentialBackoff(initial_delay=1, exponential_base=2, jitter=True
     return decorator
 
 @retryWithExponentialBackoff(initial_delay=2, max_retries=7)
-def openAiTranslate(payload: list) -> List[TranslationItem]:
+def openAiTranslate(payload: Dict) -> List[TranslationItem]:
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -254,10 +276,12 @@ def openAiTranslate(payload: list) -> List[TranslationItem]:
     json_response = json.loads(completion.choices[0].message.content)
     return adapter.validate_python(json_response["translations"])
 
-def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], page_num) -> List[Dict]:
+def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], summary, page_num) -> List[Dict]:
     grouped_blocks = []
     current_group = []
     current_length = 0
+
+    print(f"\n📄 [Page {page_num + 1}] 번역할 블록 스타일링 및 그룹핑 시작")
 
     # 그룹 나누기
     for idx, block in enumerate(blocks):
@@ -277,9 +301,17 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
     if current_group:
         grouped_blocks.append(current_group)
 
+    print(f"🧩 [Page {page_num + 1}] 총 {len(grouped_blocks)}개 그룹으로 분할 완료")
+
     # 그룹별 번역 처리
-    for group in grouped_blocks:
-        payload = [{"block_num": idx, "text": styled_text} for idx, _, styled_text in group]
+    for group_num, group in enumerate(grouped_blocks, 1):
+        block_indices = [idx for idx, _, _ in group]
+        print(f"\n🛰️ [Page {page_num + 1}] Group {group_num}: 블록 {block_indices} 번역 요청")
+
+        payload = {
+            'summary': summary,
+            'blocks': [{"block_num": idx, "text": styled_text} for idx, _, styled_text in group]
+        }
         err_count = 0
 
         while err_count < 5:
@@ -292,7 +324,9 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                 for idx, block, _ in group:
                     translated_text = translated_map.get(idx, '')
                     block["to_be_translated"] = True
+
                     if translated_text.strip() == '':
+                        print(f"⚠️ [Page {page_num + 1}] Block {idx}: 빈 결과 → 제외")
                         block["to_be_translated"] = False
                         continue
 
@@ -300,9 +334,11 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                         styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
                         styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
                         block["styled_lines"] = styled_lines
+                        print(f"✅ [Page {page_num + 1}] Block {idx}: 번역 및 스타일 처리 완료")
 
                     except Exception as block_error:
-                        print(f"블럭 처리 실패 (block_num {idx}, page {page_num + 1}): {block_error}")
+                        print(f"❌ [Page {page_num + 1}] Block {idx}: 스타일 처리 실패 → 그룹 전체 재시도")
+                        print(f"     이유: {block_error}")
                         block["to_be_translated"] = False
                         block_error_occurred = True
                         break
@@ -310,12 +346,14 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                 if block_error_occurred:
                     raise Exception("그룹 내 블럭 처리 중 에러 발생 → 그룹 재시도")
                 else:
+                    print(f"🎉 [Page {page_num + 1}] Group {group_num} 처리 완료")
                     break
 
             except Exception as e:
                 err_count += 1
-                print(f"그룹 번역 오류: {e}, 재시도 {err_count}/5 (page {page_num})")
+                print(f"🔁 [Page {page_num + 1}] Group {group_num} 번역 재시도 {err_count}/5: {e}")
                 if err_count >= 5:
-                    print(f"5회 실패")
+                    print(f"❗ [Page {page_num + 1}] Group {group_num} 처리 실패 (최대 시도 초과)")
 
     return blocks
+

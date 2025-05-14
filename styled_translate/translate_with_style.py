@@ -14,7 +14,7 @@ def translateWithStyle(page_info):
     page_info["style_dict"] = assignSpanStyle(blocks)
     assignPrimaryStyleId(blocks, page_info["style_dict"])
     
-    makeTranslatedStyledSpans(blocks, page_info["style_dict"], page_num)
+    makeTranslatedStyledSpans(blocks, page_info["style_dict"], page_info["summary"], page_num)
         
     return page_info["style_dict"]
   
