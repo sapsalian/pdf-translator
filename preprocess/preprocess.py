@@ -78,6 +78,4 @@ if __name__ == "__main__":
 def preProcessPageInfos(page_infos):
     for page_info in page_infos:
         preProcess(page_info)
-
-    return page_infos
   

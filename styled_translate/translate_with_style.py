@@ -5,7 +5,7 @@ from styled_translate.translate_blocks import makeTranslatedStyledSpans
 from styled_translate.draw_styled_blocks import replaceTranslatedBlocks
 from styled_translate.mark_to_be_translated import assignToBeTranslated
 
-def translateWithStyle(page_info):
+def translateWithStyle(page_info, term_dict):
     blocks = page_info.get("blocks", [])
     page_num = page_info["page_num"]
     
@@ -14,7 +14,7 @@ def translateWithStyle(page_info):
     page_info["style_dict"] = assignSpanStyle(blocks)
     assignPrimaryStyleId(blocks, page_info["style_dict"])
     
-    makeTranslatedStyledSpans(blocks, page_info["style_dict"], page_info["summary"], page_num)
+    makeTranslatedStyledSpans(blocks, page_info["style_dict"], page_info["summary"], page_num, term_dict)
         
     return page_info["style_dict"]
   

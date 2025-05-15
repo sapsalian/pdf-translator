@@ -1,4 +1,5 @@
 from styled_translate.translate_pdf import translatePdfInParallel
+from preprocess.pdf_summary import summarizeTest
 import sys, os
 import time
 
@@ -14,12 +15,12 @@ if __name__ == "__main__":
         for filename in os.listdir(input_folder):
             if filename.lower().endswith(".pdf"):
                 print(f"Processing: {filename}")
-                translatePdfInParallel(filename)
+                translatePdfInParallel(filename, 50)
     else:
         # 지정된 파일만 처리
         pdf_name = sys.argv[1]
         print(f"Processing: {pdf_name}")
-        translatePdfInParallel(pdf_name)
+        translatePdfInParallel(pdf_name, 50)
         
     end_time = time.time()  # 종료 시각 기록
 

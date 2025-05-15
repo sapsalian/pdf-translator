@@ -114,6 +114,7 @@ def separateBlock(block):
                 "type": block.get("type", 0),
                 "align": block.get("align", ALIGN_LEFT),
                 "class_name": block.get("class_name", "Text"),
+                "original_bbox": current_bbox,
                 "bbox": current_bbox,
                 "lines": current_block
             })
@@ -130,6 +131,7 @@ def separateBlock(block):
             "type": block.get("type", 0),
             "align": block.get("align", ALIGN_LEFT),
             "class_name": block.get("class_name", "Text"),
+            "original_bbox": current_bbox,
             "bbox": current_bbox,
             "lines": current_block
         })

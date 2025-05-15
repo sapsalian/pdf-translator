@@ -19,7 +19,7 @@ def bbox_to_quad(bbox):
 
 def deleteTextBlocks(page, blocks):
   for b in blocks:
-    quad = bbox_to_quad(b["bbox"])
+    quad = bbox_to_quad(b["original_bbox"])
     page.add_redact_annot(quad)
     
   page.apply_redactions(0)
