@@ -1,3 +1,6 @@
+import pymupdf
+import re
+
 def lineText(line) :
   text = ""
   prev_span = None
@@ -30,3 +33,29 @@ def blockText(block):
   for line in block["lines"]:
     text += lineText(line) + '\n'
   return text
+
+
+def getBlockTextsWithUnicodeEscape(blocks):
+    blockTexts = []
+    for block in blocks:
+        text = blockText(block)
+        escapedText = ''.join(
+            c if c.isascii() and (c.isalpha() or c.isspace()) else f'\\u{ord(c):04x}' for c in text
+        )
+        blockTexts.append(escapedText)
+    return blockTexts
+
+def printEscapedBlocksFromPdf(filePath, pageNum):
+    doc = pymupdf.open(filePath)
+    if pageNum < 0 or pageNum >= len(doc):
+        print(f"❌ 페이지 번호 {pageNum}는 유효하지 않습니다. 총 페이지 수: {len(doc)}")
+        return
+
+    page = doc[pageNum]
+    blocks = page.get_text("dict")["blocks"]
+    escapedBlocks = getBlockTextsWithUnicodeEscape(blocks)
+
+    for block_text in escapedBlocks:
+        print(block_text)
+        print("\n")  # 엔터 두 번
+

@@ -1,4 +1,5 @@
 import re
+from typing import Dict, List
 from text_extract.text_extract import lineText
 
 def getFirstXExceptBullet(line):
@@ -164,3 +165,21 @@ def starts_with_numbered_list(prev_line, line, sepa_check = False):
     text = lineText(line)
     
     return any(re.match(p, text.strip()) for p in patterns)
+
+
+def calculateAverageGap(lines: List[Dict], rotate: int) -> float:
+    """
+    진행 방향에 따라 수직 gap 평균 계산
+    rotate: 0/180이면 y축 기준, 90/270이면 x축 기준
+    """
+    gaps = []
+    for i in range(len(lines) - 1):
+        bbox1 = lines[i]["bbox"]
+        bbox2 = lines[i+1]["bbox"]
+        if rotate in (0, 180):
+            gap = bbox2[1] - bbox1[3]  # 위쪽 y - 아래쪽 y
+        else:
+            gap = bbox2[0] - bbox1[2]  # 왼쪽 x - 오른쪽 x
+        if gap > 0:
+            gaps.append(gap)
+    return sum(gaps) / len(gaps) if gaps else 0

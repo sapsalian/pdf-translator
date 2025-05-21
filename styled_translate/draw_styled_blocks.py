@@ -3,6 +3,7 @@ import pymupdf
 from styled_translate.get_font import getFontPath, getFontName
 from styled_translate.assign_style import SpanStyle, dirToRotation
 from text_edit.text_delete import deleteTextBlocks
+from util.line_utils import calculateAverageGap
 
 def getRotatedBbox(original_bbox, rotate):
   x0, y0, x1, y1 = original_bbox
@@ -47,12 +48,76 @@ def getDrawPosition(line_start_hor, line_base_vert, rel_x, rel_y, rotate):
         
     return movePosWithRotation(x, y, rel_x, rel_y, rotate)
         
-        
+
+def calculateExtraGap(block: Dict, selected_lines: List[Dict], original_avg_gap: float, rotate: int) -> float:
+    """
+    진행 방향에 맞춰 전체 block과 선택된 line 목록 기반으로 추가 gap 계산
+    """
+    block_bbox = block["bbox"]
+    block_dim = (block_bbox[3] - block_bbox[1]) if rotate in (0, 180) else (block_bbox[2] - block_bbox[0])
+
+    # 각 line의 수직 높이 합산
+    lines_dim = 0
+    for line in selected_lines:
+        bbox = line["bbox"]
+        dim = (bbox[3] - bbox[1]) if rotate in (0, 180) else (bbox[2] - bbox[0])
+        lines_dim += dim
+
+    num_lines = len(selected_lines)
+    new_gap_total = block_dim + original_avg_gap - lines_dim
+    return (new_gap_total / num_lines - original_avg_gap) if num_lines > 1 else 0 
+
+def shiftLinesInDirection(lines: List[Dict], extra_gap: float, rotate: int) -> List[Dict]:
+    """
+    진행 방향 기준으로 bbox를 shift
+    rotate: 0/180이면 y축 이동, 90/270이면 x축 이동
+    """
+    adjusted_lines = []
+    shift = 0
+    for line in lines:
+        x0, y0, x1, y1 = line["bbox"]
+        if rotate in (0, 180):
+            new_bbox = [x0, y0 + shift, x1, y1 + shift]
+        else:
+            new_bbox = [x0 + shift, y0, x1 + shift, y1]
+        adjusted_lines.append({
+            "bbox": new_bbox,
+            "dir": line["dir"]
+        })
+        shift += extra_gap
+    return adjusted_lines
+
+def adjustLinesWithGap(block: Dict, num_lines: int) -> List[Dict]:
+    """
+    block["lines"]에서 상위 num_lines개의 line만 남기고,
+    진행 방향에 맞춰 bbox 간격 조정
+    """
+    lines = block.get("lines", [])
+    if not lines or num_lines >= len(lines):
+        return lines  # 그대로 반환
+
+    selected_lines = lines[:num_lines]
     
+    if len(selected_lines) == 0:
+        return []
+
+    # 진행 방향 결정
+    dir = selected_lines[0]["dir"]
+    rotate = dirToRotation(dir)
+
+    original_avg_gap = calculateAverageGap(selected_lines, rotate)
+    extra_gap = calculateExtraGap(block, selected_lines, original_avg_gap, rotate)
+
+    return shiftLinesInDirection(selected_lines, extra_gap, rotate)
+
 
 def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], page: pymupdf.Page):
-    lines = block["lines"]  # 각 줄의 bbox
     styled_lines = block.get("styled_lines", [])  # buildStyledLines 결과
+    
+    if (block.get("class_name") == "Text"):
+        lines = adjustLinesWithGap(block, len(styled_lines))  # 각 줄의 bbox
+    else:
+        lines = block["lines"]  # 각 줄의 bbox
     
     if len(styled_lines) == 0:
         return

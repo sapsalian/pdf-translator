@@ -1,5 +1,6 @@
 from styled_translate.translate_pdf import translatePdfInParallel
 from preprocess.pdf_summary import summarizeTest
+from text_extract.text_extract import printEscapedBlocksFromPdf
 import sys, os
 import time
 
@@ -21,6 +22,7 @@ if __name__ == "__main__":
         pdf_name = sys.argv[1]
         print(f"Processing: {pdf_name}")
         translatePdfInParallel(pdf_name, 50)
+        # printEscapedBlocksFromPdf("inputFile/" +pdf_name, 3)
         
     end_time = time.time()  # 종료 시각 기록
 

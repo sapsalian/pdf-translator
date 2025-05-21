@@ -207,14 +207,14 @@ You must return the output as a JSON object like this:
 5. Leave URLs, code snippets, technical terms, or unknown words as-is unless defined in the term_dict.
 
 🏷 Style tag handling:
-Some input blocks may contain tags such as [[n]]...[[/n]] or [[sN]]...[[/sN]]:
+Some input blocks may contain tags such as [[N]]...[[/N]] or [[sN]]...[[/sN]] (N is Positive Integer):
 - You must preserve these tags **exactly as they appear**.
 - Do not modify, remove, add, or reorder any tags.
 - For [[sN]]...[[/sN]] superscript tags, **do not translate the content inside** the tag. Leave the enclosed text exactly as it is.
 
 ↩ Line break handling:
 The input text may include line breaks caused by PDF extraction. Use your judgment:
-- Preserve line breaks only if they reflect actual structural or semantic boundaries (e.g., between formulas, bullet points, or distinct thoughts).
+- Preserve line breaks only if they reflect actual structural or semantic boundaries (e.g., between formulas or bullet points).
 - If a line break simply splits a sentence or phrase that logically continues, remove the break and connect the lines smoothly.
 - Do NOT insert any line breaks that were not originally present.
 
