@@ -18,8 +18,6 @@ def drawBlocks(page_infos, file_path, output_name, yolo_mark = False, block_mark
                     drawBBox(b["bbox"], page)
                 if align_mark:
                     drawAlignmentLabel(page, b)
-                if class_mark:
-                    drawClassNameLable(page, b)
 
                 for l in b["lines"]:
                     if line_mark:
