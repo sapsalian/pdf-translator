@@ -10,6 +10,7 @@ import random
 import re
 import json
 from anthropic import Anthropic
+from util.block_utils import ALIGN_CENTER, ALIGN_LEFT
 
 client = OpenAI()
 anthropic_client = Anthropic()
@@ -160,75 +161,59 @@ class TranslationItem(BaseModel):
 
 adapter = TypeAdapter(List[TranslationItem])
 
-def makeSystemMessage(source_language, target_language):
-    system_message = f'''  
-You are one of the world’s best translators, and this translation task is your chance to prove your abilities to the world. If you complete this task flawlessly, you will be rewarded with a $100,000 prize.
+def makeSystemMessage(src_lang, tgt_lang):
+    return f"""
+📝 **Role**: Professional translator (strict glossary, JSON output)
 
-The input will be provided as a JSON object with the following structure:
-{{
-  "summary": "A brief summary of the page to provide overall context.",
-  "term_dict": {{
-    "source_term_1": "target_term_1",
-    "source_term_2": "target_term_2"
-  }},
-  "blocks": [
-    {{"block_num": 1, "text": "first block text"}},
-    {{"block_num": 2, "text": "second block text"}}
-  ]
-}}
+▶ Source → Target: {src_lang} → {tgt_lang}
 
-You must return the output as a JSON object like this:
-{{
-  "translations": [
-    {{"block_num": 1, "translated_text": "translated result for first block"}},
-    {{"block_num": 2, "translated_text": "translated result for second block"}}
-  ]
-}}
+###############################
+1️⃣ Input / Output Schema
+###############################
+Input JSON:
+{{"summary": "...", "term_dict": {{}}, "blocks": [{{"block_num": 1, "text": "..."}} ... ]}}
 
-🔍 Summary usage:
-- Use the "summary" field to understand the general topic and tone.
-- It provides context to improve translation accuracy, but must not appear in your output.
+Output JSON (must match exactly):
+{{"translations": [{{"block_num": 1, "translated_text": "..."}} ... ]}}
 
-📘 Term dictionary usage:
-- Use the "term_dict" field as a **strict glossary**.
-- If a source term appears in this dictionary, you **must translate it exactly as specified**.
-- Do not attempt to paraphrase or replace glossary terms with synonyms.
-- If a glossary term appears inside tags, preserve the tag and apply the glossary within the tag boundaries.
+- Keep order and length identical to `blocks`.
+- If `text` is empty → `"translated_text": ""`.
 
-📛 Named entities:
-- Do NOT translate named entities such as model names (e.g., GPT-4, BERT), organization names (e.g., OpenAI, Google), product names (e.g., ChatGPT), or acronyms (e.g., API, LLM).
-- Keep such terms exactly as they appear in the source text.
-- ⚠️ Preserve the **original casing** (uppercase/lowercase) of these terms exactly. For example, do not change “ChatGPT” to “chatgpt”.
-- This applies even if they are not listed in the term_dict.
+###############################
+2️⃣ Glossary & Entities
+###############################
+✔ Use **term_dict** as absolute authority.
+✔ Preserve model / product / org names (GPT-4, BERT, ChatGPT, API…).
+✔ Preserve original casing.
 
-🎯 Important translation rules:
-1. Do NOT change or reorder the JSON structure.
-2. Only translate the "text" field in each block.
-3. Keep the "block_num" unchanged.
-4. If the "text" is empty or whitespace, return an empty string in "translated_text".
-5. Leave URLs, code snippets, technical terms, or unknown words as-is unless defined in the term_dict.
+Priority: term_dict > Named-entity > general translation.
 
-🏷 Style tag handling:
-Some input blocks may contain tags such as [[N]]...[[/N]] or [[sN]]...[[/sN]] (N is Positive Integer):
-- You must preserve these tags **exactly as they appear**.
-- Do not modify, remove, add, or reorder any tags.
-- For [[sN]]...[[/sN]] superscript tags, **do not translate the content inside** the tag. Leave the enclosed text exactly as it is.
+###############################
+3️⃣ Tag & Formatting Rules
+###############################
+Tag set: [[N]] [[/N]], [[sN]] [[/sN]]
+- Copy tags exactly as they appear (verbatim), and maintain their structure.
+- Do **not** translate inside [[sN]]…[[/sN]].
+- No new tags, no tag deletion.
 
-↩ Line break handling:
-The input text may include line breaks caused by PDF extraction. Use your judgment:
-- Preserve line breaks only if they reflect actual structural or semantic boundaries (e.g., between formulas or bullet points).
-- If a line break simply splits a sentence or phrase that logically continues, remove the break and connect the lines smoothly.
-- Do NOT insert any line breaks that were not originally present.
+↩ Intelligent line-break handling
+- The source text may contain line breaks (\\n) introduced by PDF extraction.
+- These are often not meaningful. Ignore them during translation.
+- Translate the text naturally and fluently, as if no line breaks exist.
+- After translation, reinsert a line break **only if** it reflects a true semantic or structural boundary (e.g., between formulas, list items, or paragraphs).
+- Otherwise, remove the line break and merge the content smoothly.
+- Do **not** insert any new line breaks that were not in the original.
 
-🎯 Goal: Produce fluent, natural, and faithful translations in the target language, while strictly adhering to the term dictionary and preserving structural tags.
+###############################
+4️⃣ Quality Checklist before respond
+###############################
+- Valid JSON? ✅
+- Block counts match? ✅
+- Glossary terms matched? ✅
+- Tags unchanged? ✅
+"""
 
-Language:
-- Source: {source_language}
-- Target: {target_language}
 
-I trust in your meticulousness, concentration, and exceptional talent. I look forward to seeing your outstanding result.
-'''
-    return system_message
 
 def makeAnthropicSystemMessage(source_language, target_language):
     system_message = f'''  
@@ -510,7 +495,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
 
         while err_count < 2:
             try:
-                translated_items = anthropicTranslate(payload)
+                translated_items = openAiTranslate(payload)
                 translated_map = {item.block_num: item.translated_text for item in translated_items}
 
                 block_error_occurred = False
