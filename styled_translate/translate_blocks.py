@@ -9,8 +9,10 @@ import time
 import random
 import re
 import json
+from anthropic import Anthropic
 
 client = OpenAI()
+anthropic_client = Anthropic()
 
 def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> str:
     """
@@ -228,7 +230,106 @@ I trust in your meticulousness, concentration, and exceptional talent. I look fo
 '''
     return system_message
 
+def makeAnthropicSystemMessage(source_language, target_language):
+    system_message = f'''  
+You are one of the world's best translators, and this translation task is your chance to prove your abilities to the world. If you complete this task flawlessly, you will be rewarded with a $100,000 prize.
 
+The input will be provided as a JSON object with the following structure:
+{{
+  "summary": "A brief summary of the page to provide overall context.",
+  "term_dict": {{
+    "source_term_1": "target_term_1",
+    "source_term_2": "target_term_2"
+  }},
+  "blocks": [
+    {{"block_num": 1, "text": "first block text"}},
+    {{"block_num": 2, "text": "second block text"}}
+  ]
+}}
+
+🚨 CRITICAL: You MUST return ONLY a valid JSON object with NO additional text, explanations, or formatting. Your entire response must be parseable JSON.
+
+Your output must follow this EXACT structure:
+{{
+  "translations": [
+    {{"block_num": 1, "translated_text": "translated result for first block"}},
+    {{"block_num": 2, "translated_text": "translated result for second block"}}
+  ]
+}}
+
+🔒 JSON FORMAT REQUIREMENTS:
+- Start your response immediately with {{ (opening brace)
+- End your response with }} (closing brace)  
+- Use double quotes (") for all strings, never single quotes (')
+- Escape special characters properly: \" for quotes, \\ for backslashes, \\n for newlines
+- Do NOT add any text before or after the JSON object
+- Do NOT wrap the JSON in markdown code blocks (no ```json```)
+- Do NOT include explanatory text or comments
+- Ensure all brackets and braces are properly matched
+- Include commas between array elements and object properties
+- Do NOT add trailing commas after the last element
+
+📝 TEXT ESCAPING RULES:
+- If translated text contains double quotes, escape them as \"
+- If translated text contains backslashes, escape them as \\
+- If translated text contains newlines, escape them as \\n
+- If translated text contains tabs, escape them as \\t
+
+🔍 Summary usage:
+- Use the "summary" field to understand the general topic and tone.
+- It provides context to improve translation accuracy, but must not appear in your output.
+
+📘 Term dictionary usage:
+- Use the "term_dict" field as a **strict glossary**.
+- If a source term appears in this dictionary, you **must translate it exactly as specified**.
+- Do not attempt to paraphrase or replace glossary terms with synonyms.
+- If a glossary term appears inside tags, preserve the tag and apply the glossary within the tag boundaries.
+
+📛 Named entities:
+- Do NOT translate named entities such as model names (e.g., GPT-4, BERT), organization names (e.g., OpenAI, Google), product names (e.g., ChatGPT), or acronyms (e.g., API, LLM).
+- Keep such terms exactly as they appear in the source text.
+- ⚠️ Preserve the **original casing** (uppercase/lowercase) of these terms exactly. For example, do not change "ChatGPT" to "chatgpt".
+- This applies even if they are not listed in the term_dict.
+
+🎯 Important translation rules:
+1. Do NOT change or reorder the JSON structure.
+2. Only translate the "text" field in each block.
+3. Keep the "block_num" unchanged and match it exactly from input.
+4. If the "text" is empty or whitespace, return an empty string in "translated_text".
+5. Leave URLs, code snippets, technical terms, or unknown words as-is unless defined in the term_dict.
+6. The number of translation objects in the output array must match exactly the number of blocks in the input.
+
+🏷 Style tag handling:
+Some input blocks may contain tags such as [[N]]...[[/N]] or [[sN]]...[[/sN]] (N is Positive Integer):
+- You must preserve these tags **exactly as they appear**.
+- Do not modify, remove, add, or reorder any tags.
+- For [[sN]]...[[/sN]] superscript tags, **do not translate the content inside** the tag. Leave the enclosed text exactly as it is.
+
+↩ Line break handling:
+The input text may include line breaks caused by PDF extraction. Use your judgment:
+- Preserve line breaks only if they reflect actual structural or semantic boundaries (e.g., between formulas or bullet points).
+- If a line break simply splits a sentence or phrase that logically continues, remove the break and connect the lines smoothly.
+- Do NOT insert any line breaks that were not originally present.
+
+⚠️ VALIDATION CHECKLIST:
+Before submitting your response, verify:
+- [ ] Response starts with {{ and ends with }}
+- [ ] All strings use double quotes
+- [ ] All special characters are properly escaped
+- [ ] Block numbers match input exactly
+- [ ] Number of translation objects equals number of input blocks
+- [ ] No extra text outside the JSON structure
+- [ ] JSON is syntactically valid
+
+🎯 Goal: Produce fluent, natural, and faithful translations in the target language, while strictly adhering to the term dictionary, preserving structural tags, and maintaining perfect JSON format.
+
+Language:
+- Source: {source_language}
+- Target: {target_language}
+
+Remember: Your response must be ONLY valid JSON. Any deviation from this format will result in processing failure.
+'''
+    return system_message
 
 
 def retryWithExponentialBackoff(initial_delay=1, exponential_base=2, jitter=True, max_retries=10, errors=(RateLimitError,)):
@@ -287,6 +388,74 @@ def openAiTranslate(payload: Dict) -> List[TranslationItem]:
     json_response = json.loads(completion.choices[0].message.content)
     return adapter.validate_python(json_response["translations"])
 
+
+def validate_translation_schema(data: Dict) -> bool:
+    """번역 응답 스키마 검증"""
+    try:
+        # translations 키가 있는지 확인
+        if "translations" not in data:
+            return False
+        
+        translations = data["translations"]
+        
+        # translations가 배열인지 확인
+        if not isinstance(translations, list):
+            return False
+        
+        # 각 translation 항목 검증
+        for item in translations:
+            if not isinstance(item, dict):
+                return False
+            
+            # 필수 키 확인
+            if "block_num" not in item or "translated_text" not in item:
+                return False
+            
+            # 타입 확인
+            if not isinstance(item["block_num"], int):
+                return False
+            
+            if not isinstance(item["translated_text"], str):
+                return False
+            
+            # 추가 프로퍼티 확인 (block_num, translated_text 외의 키가 있으면 안됨)
+            if len(item.keys()) != 2:
+                return False
+        
+        # 최상위 레벨에서 translations 외의 키가 있으면 안됨
+        if len(data.keys()) != 1:
+            return False
+            
+        return True
+    except:
+        return False
+
+@retryWithExponentialBackoff(initial_delay=2, max_retries=7)
+def anthropicTranslate(payload: Dict) -> List[TranslationItem]:
+    message = anthropic_client.messages.create(
+        model="claude-3-5-haiku-latest",
+        max_tokens=8192,
+        system=[
+            {
+                "type": "text",
+                "text": makeAnthropicSystemMessage("English", "한국어"),
+                "cache_control": {"type": "ephemeral"}
+            }
+        ],
+        messages=[
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
+        ]
+    )
+    
+    # JSON 파싱
+    json_response = json.loads(message.content[0].text)
+    
+    # 스키마 검증
+    if not validate_translation_schema(json_response):
+        raise ValueError("응답이 예상된 스키마와 일치하지 않습니다")
+    
+    return adapter.validate_python(json_response["translations"])
+
 def removeLineBreaksFromStyledSpans(styled_spans: List[Dict]) -> List[Dict]:
     """
     styled_spans 배열에서 각 요소의 text에서 개행문자(\n)를 제거한 새 배열을 반환합니다.
@@ -341,7 +510,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
 
         while err_count < 2:
             try:
-                translated_items = openAiTranslate(payload)
+                translated_items = anthropicTranslate(payload)
                 translated_map = {item.block_num: item.translated_text for item in translated_items}
 
                 block_error_occurred = False
@@ -377,7 +546,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
             except Exception as e:
                 err_count += 1
                 print(f"🔁 [Page {page_num + 1}] Group {group_num} 번역 재시도 {err_count}/5: {e}")
-                if err_count >= 2:
+                if err_count >= 5:
                     print(f"❗ [Page {page_num + 1}] Group {group_num} 처리 실패 (최대 시도 초과)")
 
     # 실패한 블록들 스타일 처리 마지막 시도
