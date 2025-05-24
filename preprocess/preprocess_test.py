@@ -26,5 +26,5 @@ def preprocessedBlockDraw(pdf_name, max_workers=30):
         print(len(page_info["blocks"]))
         print("--------------------------------")
 
-    drawBlocks(page_infos, file_path, pdf_name, block_mark= True, class_mark= True)
+    drawBlocks(page_infos, file_path, pdf_name, block_mark= True, class_mark= True, line_mark= True)
 

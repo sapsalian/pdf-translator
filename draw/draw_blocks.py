@@ -18,6 +18,8 @@ def drawBlocks(page_infos, file_path, output_name, yolo_mark = False, block_mark
                     drawBBox(b["bbox"], page)
                 if align_mark:
                     drawAlignmentLabel(page, b)
+                if class_mark:
+                        drawClassNameLable(page, b)
 
                 for l in b["lines"]:
                     if line_mark:
@@ -31,8 +33,8 @@ def drawBlocks(page_infos, file_path, output_name, yolo_mark = False, block_mark
             for obj in yolo_objects:
                 if yolo_mark:
                     drawBBox(obj["bbox"], page)
-                if class_mark:
-                    drawClassNameLable(page, obj)
+                    if class_mark:
+                        drawClassNameLable(page, obj)
 
 
         doc.save(output_path, garbage=3, clean=True, deflate=True)

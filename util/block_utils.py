@@ -53,7 +53,7 @@ def getBlockAlignment(block):
     # for문에서 나왔으면 모든 라인이 블락 중간에 있었다는 것.
   
     if all_lines_attached_to_sides:
-        if block.get("class_name", "Text") in ['Title', 'Table', 'Picture']:
+        if block.get("class_name", "Text") in ['Title', 'Picture']:
             return ALIGN_CENTER
         return ALIGN_LEFT
 
