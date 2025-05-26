@@ -7,6 +7,7 @@ from preprocess.bbox_adjust import adjustBlocksFromYolo
 from preprocess.assign_classname import assignClassNameToBlocks
 from preprocess.split_special_blocks import splitSpecialBlocks
 from preprocess.clean_blocks import cleanBlocks
+from preprocess.link_mark import markLinkToSpan
 
 
 
@@ -29,6 +30,8 @@ def preProcess(page_info):
     blocks = extractTrueBlocks(blocks) 
     
     adjustBlocksFromYolo(blocks, yolo_objects)
+    
+    markLinkToSpan(blocks, links)
     
     page_info["blocks"] = blocks
 

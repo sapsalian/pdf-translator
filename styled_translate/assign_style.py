@@ -1,6 +1,7 @@
 import math
 from typing import List, Dict, Tuple
 from text_extract.text_extract import *
+from typing import Optional
 
 # 방향 벡터(dir)를 기반으로 회전 각도(0, 90, 180, 270 중 가장 가까운 값) 계산
 # 예: (1, 0) → 0도, (0, -1) → 90도 등
@@ -23,7 +24,8 @@ class SpanStyle:
                  is_italic: bool,
                  is_bold: bool,
                  font_color: Tuple[float, float, float],
-                 rotate: float):
+                 rotate: float,
+                 link_num: Optional[int]):
         self.is_superscript = is_superscript
         self.y_offset = y_offset  # 라인 기준에서 얼마나 떠 있는지
         self.x_gap_with_prev = x_gap_with_prev  # 이전 span과의 거리
@@ -32,6 +34,7 @@ class SpanStyle:
         self.is_bold = is_bold
         self.font_color = font_color
         self.rotate = rotate  # 텍스트 회전 방향
+        self.link_num = link_num
 
     def __eq__(self, other):
         if not isinstance(other, SpanStyle):
@@ -45,7 +48,8 @@ class SpanStyle:
             self.is_italic == other.is_italic and
             self.is_bold == other.is_bold and
             all(a == b for a, b in zip(self.font_color, other.font_color)) and
-            self.rotate == other.rotate
+            self.rotate == other.rotate and
+            self.link_num == other.link_num
         )
 
     def __hash__(self):
@@ -58,7 +62,8 @@ class SpanStyle:
             self.is_italic,
             self.is_bold,
             self.font_color,
-            round(self.rotate, 1)
+            round(self.rotate, 1),
+            self.link_num
         ))
 
     def __repr__(self):
@@ -73,7 +78,8 @@ class SpanStyle:
             "is_italic": self.is_italic,
             "is_bold": self.is_bold,
             "font_color": self.font_color,
-            "rotate": self.rotate
+            "rotate": self.rotate,
+            "link_num": self.link_num
         }
 
 
@@ -192,7 +198,8 @@ def createSpanStyle(span: Dict, line_y_ref: float, prev_bbox: List[float], rotat
         is_italic=is_italic,
         is_bold=is_bold,
         font_color=color_rgb,
-        rotate=rotate
+        rotate=rotate,
+        link_num= span.get("link_num", None)
     )
     return style, bbox
 

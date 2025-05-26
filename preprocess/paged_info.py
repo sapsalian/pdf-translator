@@ -37,14 +37,17 @@ def getFileInfo(file_path, max_workers=30):
         {
             "page_num": 1,
             "blocks": page.get_text("dict", flags=1, sort=True)["blocks"] 로 얻은 block 정보 배열,
-            "links": {
-                "kind": 링크 종류 (예: LINK_URI, LINK_GOTO, 등),
-                "from": 링크가 걸린 사각형 위치 (Rect),
-                "uri": 외부 URL일 경우 대상 주소,
-                "page": 내부 링크일 경우 목적지 페이지 번호,
-                "xref": PDF 내부 객체 참조 번호,
-                "to": 이동할 위치 정보 등
-            },
+            "links": [
+                {
+                    "kind": 링크 종류 (예: LINK_URI, LINK_GOTO, 등),
+                    "from": 링크가 걸린 사각형 위치 (Rect),
+                    "uri": 외부 URL일 경우 대상 주소,
+                    "page": 내부 링크일 경우 목적지 페이지 번호,
+                    "xref": PDF 내부 객체 참조 번호,
+                    "to": 이동할 위치 정보 등
+                },
+                ...
+            ],
             "yolo_objects": getYoloObjects(file_path) 해서 얻어온 값 중 해당 페이지의 객체 배열
         },
         ...
@@ -78,3 +81,49 @@ def getFileInfo(file_path, max_workers=30):
         "page_infos": results
     }
 
+def getFileInfoWithoutSummary(file_path):
+    '''
+    file_path 받아서, 페이지별 blocks 반환받는 함수. 페이지별 링크 정보도 포함.
+    
+    반환 값:
+    [
+        {
+            "page_num": 1,
+            "blocks": page.get_text("dict", flags=1, sort=True)["blocks"] 로 얻은 block 정보 배열,
+            "links": [
+                {
+                    "kind": 링크 종류 (예: LINK_URI, LINK_GOTO, 등),
+                    "from": 링크가 걸린 사각형 위치 (Rect),
+                    "uri": 외부 URL일 경우 대상 주소,
+                    "page": 내부 링크일 경우 목적지 페이지 번호,
+                    "xref": PDF 내부 객체 참조 번호,
+                    "to": 이동할 위치 정보 등
+                },
+                ...
+            ],
+            "yolo_objects": getYoloObjects(file_path) 해서 얻어온 값 중 해당 페이지의 객체 배열
+        },
+        ...
+    ]
+    '''
+    results = []
+    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
+
+    with pymupdf.open(file_path) as doc:
+        for page_num, page in enumerate(doc, start=1):
+            # blocks 추출
+            blocks = page.get_text("dict", flags=1, sort=True)["blocks"]
+
+            # links 추출 
+            links = page.get_links()
+
+            results.append({
+                "page_num": page_num,
+                "blocks": blocks,
+                "links": links,
+                "yolo_objects": paged_yolo.get(page_num, []),
+            })
+
+    return {
+        "page_infos": results
+    }
