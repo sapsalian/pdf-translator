@@ -1,45 +1,39 @@
 from styled_translate.assign_style import SpanStyle
+from styled_translate.get_font_family import hasBold, hasItalic
 import pymupdf
 
 # 스타일에 따라 알맞은 폰트 경로를 선택하고 fitz.Font 인스턴스를 반환
 font_cache = {}  # 캐싱하여 중복 로딩 방지
 
-def getFont(style: SpanStyle) -> pymupdf.Font:
-    key = (style.is_bold, style.is_italic)
-    path_map = {
-        (False, False): "./static/NotoSansKR-Regular.ttf",
-        (True, False): "./static/NotoSansKR-Bold.ttf",
-        (False, True): "./static/NotoSansKR-Regular.ttf",
-        (True, True): "./static/NotoSansKR-Bold.ttf"
-    }
-    path = path_map.get(key, "./static/NotoSansKR-Regular.ttf")
+def getFont(style: SpanStyle, font_family: str) -> pymupdf.Font:
+    path = getFontPath(style, font_family)
 
     if path not in font_cache:
         font_cache[path] = pymupdf.Font(fontfile=path)
     return font_cache[path]
   
   
-def getFontPath(style: SpanStyle) -> str:
-    key = (style.is_bold, style.is_italic)
+def getFontPath(style: SpanStyle, font_family: str) -> str:
+    key = (style.is_bold and hasBold(font_family), style.is_italic and hasItalic(font_family))
     path_map = {
-        (False, False): "./static/NotoSansKR-Regular.ttf",
-        (True, False): "./static/NotoSansKR-Bold.ttf",
-        (False, True): "./static/NotoSansKR-Regular.ttf",
-        (True, True): "./static/NotoSansKR-Bold.ttf"
+        (False, False): f"./static/{font_family}/{font_family}-Regular.ttf",
+        (True, False): f"./static/{font_family}/{font_family}-Bold.ttf",
+        (False, True):  f"./static/{font_family}/{font_family}-Italic.ttf",
+        (True, True): f"./static/{font_family}/{font_family}-BoldItalic.ttf"
     }
-    path = path_map.get(key, "./static/NotoSansKR-Regular.ttf")
+    path = path_map.get(key, f"./static/{font_family}/{font_family}-Regular.ttf")
 
     return path
   
 
-def getFontName(style: SpanStyle) -> str:
-    key = (style.is_bold, style.is_italic)
+def getFontName(style: SpanStyle, font_family:str) -> str:
+    key = (style.is_bold and hasBold(font_family), style.is_italic and hasItalic(font_family))
     name_map = {
-        (False, False): "kr-regular",
-        (True, False): "kr-bold",
-        (False, True): "kr-regular",
-        (True, True): "kr-bold"
+        (False, False): f"{font_family.lower()}-regular",
+        (True, False): f"{font_family.lower()}-bold",
+        (False, True): f"{font_family.lower()}-italic",
+        (True, True): f"{font_family.lower()}-bolditalic"
     }
-    name = name_map.get(key, "./static/NotoSansKR-Regular.ttf")
+    name = name_map.get(key, f"{font_family.lower()}-regular")
 
     return name

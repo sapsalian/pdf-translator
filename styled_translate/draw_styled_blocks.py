@@ -175,14 +175,15 @@ def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], links:List[Di
         line_start_hor = getLineStartHor(block, line, styled_line, rotate)
         line_base_vert = getRotatedBbox(line["bbox"], rotate)[3]
 
-        for span in styled_line["positioned_spans"]:
-            style_id = span["style_id"]
-            text = span["text"]
-            rel_x = span["rel_x"]
+        for positioned_span in styled_line["positioned_spans"]:
+            style_id = positioned_span["style_id"]
+            text = positioned_span["text"]
+            rel_x = positioned_span["rel_x"]
+            font_family = positioned_span["font_family"]
 
             style = style_dict[style_id]
-            font_path = getFontPath(style)
-            font_name = getFontName(style)
+            font_path = getFontPath(style, font_family)
+            font_name = getFontName(style, font_family)
             
             
             # print(text, style.x_gap_with_prev, style.y_offset, style.is_bold)
@@ -215,7 +216,7 @@ def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], links:List[Di
             
             if link_num is not None:
                 link = links[link_num]
-                from_bbox = makeBboxFromOrigin(x, y, span["width"], style.font_size, rotate)
+                from_bbox = makeBboxFromOrigin(x, y, positioned_span["width"], style.font_size, rotate)
                 insertLinkToBbox(page, link, from_bbox)
                 
                 

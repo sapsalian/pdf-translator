@@ -11,6 +11,7 @@ import re
 import json
 from anthropic import Anthropic
 from util.block_utils import ALIGN_CENTER, ALIGN_LEFT
+from styled_translate.assign_fontfamily import assignFontFamilyToStyledSpans
 
 client = OpenAI()
 anthropic_client = Anthropic()
@@ -511,6 +512,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
 
                     try:
                         styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
+                        styled_spans = assignFontFamilyToStyledSpans(styled_spans, "한국어")
                         styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
                         block["styled_lines"] = styled_lines
                         print(f"✅ [Page {page_num + 1}] Block {idx}: 번역 및 스타일 처리 완료")
@@ -540,6 +542,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
         for idx, block, translated_text in failed_styling_blocks:
             try:
                 styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
+                styled_spans = assignFontFamilyToStyledSpans(styled_spans, "한국어")
                 styled_spans = removeLineBreaksFromStyledSpans(styled_spans)
                 styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
                 block["styled_lines"] = styled_lines

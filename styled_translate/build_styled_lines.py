@@ -22,8 +22,9 @@ def getCharWidths(styled_span: Dict, style_dict: Dict[int, 'SpanStyle']) -> List
     """
     text = styled_span["text"]
     style_id = styled_span["style_id"]
+    font_family = styled_span["font_family"]
     style = style_dict[style_id]
-    font = getFont(style)  # SpanStyle 기반 폰트 객체 반환 함수
+    font = getFont(style, font_family)  # SpanStyle 기반 폰트 객체 반환 함수
     char_widths = font.char_lengths(text, fontsize=style.font_size)  # tuple로 반환됨
     return list(char_widths)
 
@@ -102,6 +103,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
             if new_span_text:
                 positioned_spans.append({
                     'style_id': cur_span['style_id'],
+                    'font_family': cur_span['font_family'],
                     'rel_x': span_start_x,
                     'text': new_span_text,
                     'width': cur_x - span_start_x
@@ -139,6 +141,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
             if new_span_text:
                 positioned_spans.append({
                     'style_id': cur_span['style_id'],
+                    'font_family': cur_span['font_family'],
                     'rel_x': span_start_x,
                     'text': new_span_text,
                     'width': cur_x - span_start_x
@@ -182,6 +185,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
             if new_span_text:
                 positioned_spans.append({
                     'style_id': cur_span['style_id'],
+                    'font_family': cur_span['font_family'],
                     'rel_x': span_start_x,
                     'text': new_span_text,
                     'width': cur_x - span_start_x
