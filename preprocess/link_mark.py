@@ -43,6 +43,6 @@ def markLinkToSpan(blocks, links):
                     width_coverage_ratio = x_overlap / min(link_width, span_width)
                     height_coverage_ratio = y_overlap / min(link_height, span_height)
 
-                    if width_coverage_ratio >= 0.8 and height_coverage_ratio >= 0.8:
+                    if width_coverage_ratio >= 0.7 and height_coverage_ratio >= 0.6:
                         span["link_num"] = link_idx
 
