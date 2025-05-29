@@ -2,6 +2,8 @@ import pymupdf
 from yolo.yolo_inference.detection import detectObjectsFromFile
 from preprocess.pdf_summary import summarizePdfInChunks, summarizePdfInChunksParallel
 from draw.draw_blocks import drawBlocks
+import modal
+import json
 
 
 def getYoloObjects(file_path):
@@ -25,7 +27,19 @@ def getYoloObjects(file_path):
         ...
     ]
     '''
+    
     return detectObjectsFromFile(file_path)
+    
+def getYoloObjectsFromRemote(file_path):
+    
+    with open(file_path, "rb") as f:
+        pdf_bytes = f.read()
+    
+    modal_detect = modal.Function.from_name("yolo-inference-app", "detect_objects_in_pdf")
+    modal_result_string = modal_detect.remote(pdf_bytes)
+    
+    yolo_objects = json.loads(modal_result_string)
+    return yolo_objects
 
 
 def getFileInfo(file_path, max_workers=30):
@@ -54,7 +68,7 @@ def getFileInfo(file_path, max_workers=30):
     ]
     '''
     results = []
-    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
+    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjectsFromRemote(file_path)}
     
     summaries_with_terms = summarizePdfInChunksParallel(file_path, max_workers=max_workers)
     term_dict = summaries_with_terms["term_dict"]
@@ -107,7 +121,7 @@ def getFileInfoWithoutSummary(file_path):
     ]
     '''
     results = []
-    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
+    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjectsFromRemote(file_path)}
 
     with pymupdf.open(file_path) as doc:
         for page_num, page in enumerate(doc, start=1):

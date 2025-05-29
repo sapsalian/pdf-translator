@@ -186,8 +186,12 @@ Output JSON (must match exactly):
 ✔ Use **term_dict** as absolute authority.
 ✔ Preserve model / product / org names (GPT-4, BERT, ChatGPT, API…).
 ✔ Preserve original casing.
+✔ **Do NOT translate proper nouns** (e.g., person names, organization names, locations, product names).
+  - Examples: "John Smith", "OpenAI", "New York", "Photoshop"
+  - If uncertain, err on the side of preserving the original.
+✔ If a proper noun overlaps with `term_dict`, follow `term_dict`.
 
-Priority: term_dict > Named-entity > general translation.
+Priority: term_dict > Named-entity (proper noun) > general translation.
 
 ###############################
 3️⃣ Tag & Formatting Rules
@@ -206,12 +210,21 @@ Tag set: [[N]] [[/N]], [[sN]] [[/sN]]
 - Do **not** insert any new line breaks that were not in the original.
 
 ###############################
-4️⃣ Quality Checklist before respond
+4️⃣ Block Matching Integrity
+###############################
+- Each `translated_text` **must** correspond exactly to the `text` of the same `block_num`.
+- Do not reorder, merge, split, or omit any blocks.
+- Keep `block_num` unchanged and ensure it appears once and only once in the output.
+- Ensure `translated_text` preserves the meaning, structure, and boundaries of its source `text` block.
+
+###############################
+5️⃣ Quality Checklist before respond
 ###############################
 - Valid JSON? ✅
 - Block counts match? ✅
 - Glossary terms matched? ✅
 - Tags unchanged? ✅
+
 """
 
 

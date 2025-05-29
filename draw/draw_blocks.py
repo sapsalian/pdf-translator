@@ -5,7 +5,7 @@ from draw.draw_link import drawLinkNumLable
 import pymupdf
 
 
-def drawBlocks(page_infos, file_path, output_name, yolo_mark = False, block_mark = True, line_mark = False, span_mark = False, align_mark = False, class_mark = False, link_mark = False, links_mark = False):
+def drawBlocks(page_infos, file_path, output_name, yolo_mark = False, block_mark = True, line_mark = False, span_mark = False, align_mark = False, class_mark = False, link_mark = False, original_link_mark = False):
     output_path = "outputFile/drawBbox_" + output_name
     page_info_map = {page_info["page_num"]: page_info for page_info in page_infos}
 
@@ -42,7 +42,7 @@ def drawBlocks(page_infos, file_path, output_name, yolo_mark = False, block_mark
                         drawClassNameLable(page, obj)
             
             links = page_info.get("links", [])
-            if links_mark:
+            if original_link_mark:
                 for link in links:
                     rect = link["from"]
                     from_bbox = [rect.x0, rect.y0, rect.x1, rect.y1]
