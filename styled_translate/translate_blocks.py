@@ -9,12 +9,12 @@ import time
 import random
 import re
 import json
-from anthropic import Anthropic
+# from anthropic import Anthropic
 from util.block_utils import ALIGN_CENTER, ALIGN_LEFT
 from styled_translate.assign_fontfamily import assignFontFamilyToStyledSpans
 
 client = OpenAI()
-anthropic_client = Anthropic()
+# anthropic_client = Anthropic()
 
 def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> str:
     """
@@ -430,30 +430,30 @@ def validate_translation_schema(data: Dict) -> bool:
         return False
 
 @retryWithExponentialBackoff(initial_delay=2, max_retries=7)
-def anthropicTranslate(payload: Dict) -> List[TranslationItem]:
-    message = anthropic_client.messages.create(
-        model="claude-3-5-haiku-latest",
-        max_tokens=8192,
-        system=[
-            {
-                "type": "text",
-                "text": makeAnthropicSystemMessage("English", "한국어"),
-                "cache_control": {"type": "ephemeral"}
-            }
-        ],
-        messages=[
-            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
-        ]
-    )
+# def anthropicTranslate(payload: Dict) -> List[TranslationItem]:
+#     message = anthropic_client.messages.create(
+#         model="claude-3-5-haiku-latest",
+#         max_tokens=8192,
+#         system=[
+#             {
+#                 "type": "text",
+#                 "text": makeAnthropicSystemMessage("English", "한국어"),
+#                 "cache_control": {"type": "ephemeral"}
+#             }
+#         ],
+#         messages=[
+#             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
+#         ]
+#     )
     
-    # JSON 파싱
-    json_response = json.loads(message.content[0].text)
+#     # JSON 파싱
+#     json_response = json.loads(message.content[0].text)
     
-    # 스키마 검증
-    if not validate_translation_schema(json_response):
-        raise ValueError("응답이 예상된 스키마와 일치하지 않습니다")
+#     # 스키마 검증
+#     if not validate_translation_schema(json_response):
+#         raise ValueError("응답이 예상된 스키마와 일치하지 않습니다")
     
-    return adapter.validate_python(json_response["translations"])
+#     return adapter.validate_python(json_response["translations"])
 
 def removeLineBreaksFromStyledSpans(styled_spans: List[Dict]) -> List[Dict]:
     """
