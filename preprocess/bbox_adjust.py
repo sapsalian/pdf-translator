@@ -1,6 +1,7 @@
 from text_extract.text_extract import blockText
 from util.line_utils import calculateAverageGap
 from styled_translate.assign_style import dirToRotation
+from util.block_utils import *
 
 # 주어진 두 bbox가 진행 방향(rotate 기준)에서 얼마나 겹치는지 비율을 계산
 # rotate: 0/180 → x축 기준, 90/270 → y축 기준
@@ -50,6 +51,7 @@ def adjustLinesIfOverlap(prevLine, currLine, line_gap, rotate, overlapThreshold=
                 currLine["bbox"] = (prevBBox[2] + line_gap, currBBox[1], currBBox[2], currBBox[3])
 
 # block 전체 및 내부 line들을 우측 경계(rightBound)에 맞춰 정렬하고, 줄 간 겹침 조정
+# 중앙 정렬시 내부 line들을 블락의 좌우측 경계 모두에 맞춤.
 def adjustBlockBbox(block, leftBound, rightBound):
     blockBBox = block["bbox"]
     block["bbox"] = (leftBound, blockBBox[1], rightBound, blockBBox[3])
@@ -62,7 +64,10 @@ def adjustBlockBbox(block, leftBound, rightBound):
 
     for i in range(len(lines)):
         x0, y0, x1, y1 = lines[i]["bbox"]
-        lines[i]["bbox"] = (x0, y0, rightBound, y1)
+        if block["align"] == ALIGN_CENTER:
+            lines[i]["bbox"] = (leftBound, y0, rightBound, y1)
+        else:
+            lines[i]["bbox"] = (x0, y0, rightBound, y1)
         if i > 0:
             adjustLinesIfOverlap(lines[i - 1], lines[i], line_gap, rotate)
 
@@ -130,8 +135,22 @@ def adjustBlocks(blocks, adjust_objects):
         # 겹치는 정도가 부족하면 YOLO 기준 bbox로 보정
         if correct_ratio < 0.97:
             adjustBlockBbox(block, left, right)
+            
+# block들의 bbox를 조정하는 함수.
+def adjustBlocksWithoutYolo(blocks):
+    
+
+    for block in blocks:
+        block_bbox = block.get("bbox")
+        lines = block.get("lines", [])
+        if not block_bbox or not lines:
+            continue
+
+        adjustBlockBbox(block, block_bbox[0], block_bbox[2])
+
 
 # YOLO 결과 중 텍스트 블럭으로 판단되는 것만 필터링하여 adjustBlocks 호출
 def adjustBlocksFromYolo(blocks, yolo_objects):
     adjust_objects = [b for b in yolo_objects if b["class_name"] not in ["Picture", "Table", "Formula"]]
-    adjustBlocks(blocks, adjust_objects)
+    # adjustBlocks(blocks, adjust_objects)
+    adjustBlocksWithoutYolo(blocks)

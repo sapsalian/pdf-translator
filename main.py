@@ -17,6 +17,7 @@ if __name__ == "__main__":
         for filename in os.listdir(input_folder):
             if filename.lower().endswith(".pdf"):
                 print(f"Processing: {filename}")
+                # preprocessedBlockDraw(filename, 50)
                 translatePdfInParallel(filename, 50)
     else:
         # 지정된 파일만 처리

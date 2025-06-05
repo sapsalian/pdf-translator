@@ -68,7 +68,7 @@ def getFileInfo(file_path, max_workers=30):
     ]
     '''
     results = []
-    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjectsFromRemote(file_path)}
+    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
     
     summaries_with_terms = summarizePdfInChunksParallel(file_path, max_workers=max_workers)
     term_dict = summaries_with_terms["term_dict"]
@@ -121,7 +121,7 @@ def getFileInfoWithoutSummary(file_path):
     ]
     '''
     results = []
-    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjectsFromRemote(file_path)}
+    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
 
     with pymupdf.open(file_path) as doc:
         for page_num, page in enumerate(doc, start=1):
