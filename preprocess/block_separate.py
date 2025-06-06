@@ -51,8 +51,8 @@ def should_split_block(prev_line, line, block_bbox, align):
     if align == ALIGN_CENTER:
       return any([
         ends_with_punctuation(prev_line, line, block_bbox, align),
-        starts_with_bullet(prev_line, line),
-        starts_with_numbered_list(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
+        startsWithBullet(prev_line, line),
+        startsWithNumberedList(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
       ])
 
     # print(
@@ -68,8 +68,8 @@ def should_split_block(prev_line, line, block_bbox, align):
         ends_with_punctuation(prev_line, line, block_bbox, align),
         is_short_line(prev_line, line, block_bbox),
         # starts_with_upper(prev_line, line),
-        starts_with_bullet(prev_line, line),
-        starts_with_numbered_list(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
+        startsWithBullet(prev_line, line),
+        startsWithNumberedList(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
     ])
 
 

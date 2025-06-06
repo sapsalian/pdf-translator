@@ -6,7 +6,7 @@ def getFirstXExceptBullet(line):
     """
     line["spans"] 안에서 글머리 기호 패턴을 제거한 후, 남은 첫 글자의 x0 좌표를 반환
     """
-    if not starts_with_bullet(None, line) and not starts_with_numbered_list(None, line):
+    if not startsWithBullet(None, line) and not startsWithNumberedList(None, line):
       return line["spans"][0]["bbox"][0]
     
     # bullet-like 패턴 목록(공백 없는 경우 포함)
@@ -102,7 +102,7 @@ def isLinesStartWithSameX(line1, line2, bullet_remove=True):
   # print(x1, x2, char_width)
   return abs(x1 - x2) <= char_width * 1.5
 
-def starts_with_bullet(_, line):
+def startsWithBullet(_, line):
     # 현재 줄이 불릿 기호로 시작하는가
     text = lineText(line)
     return bool(re.match(r"^[\u2022\u2023\u25AA\u25E6\u25BA\-\*\"\+\u2219\u25CB\u25E6\u2023\u2192\u2714\u2726\"]\s+", text))
@@ -134,7 +134,7 @@ def isLineFull(line, block_bbox):
   
   return (line_width >= block_width * 0.99)
 
-def starts_with_numbered_list(prev_line, line, sepa_check = False):
+def startsWithNumberedList(prev_line, line, sepa_check = False):
     # 현재 줄이 숫자+점 형식으로 시작하는가 (1., 2., ...)
     
     patterns = [

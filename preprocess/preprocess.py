@@ -8,8 +8,7 @@ from preprocess.assign_classname import assignClassNameToBlocks
 from preprocess.split_special_blocks import splitSpecialBlocks
 from preprocess.clean_blocks import cleanBlocks
 from preprocess.link_mark import markLinkToSpan
-
-
+from preprocess.mark_listitem import markListItems
 
 def preProcess(page_info):
     blocks = page_info.get("blocks", [])
@@ -27,11 +26,13 @@ def preProcess(page_info):
     
     assignAlignToBlocks(blocks) 
     
-    blocks = extractTrueBlocks(blocks) 
+    blocks = extractTrueBlocks(blocks)
     
     adjustBlocksFromYolo(blocks, yolo_objects)
     
     markLinkToSpan(blocks, links)
+    
+    markListItems(blocks)
     
     page_info["blocks"] = blocks
 

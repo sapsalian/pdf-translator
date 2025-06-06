@@ -78,8 +78,12 @@ def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> s
         # 줄(line) 단위로 누적, 줄 간에는 개행 삽입
         output.append(line_text)
 
-    # 전체 줄을 개행으로 이어붙여 반환
-    return "\n".join(output)
+    # List item일 때는 개행으로 이어붙이지 않기.
+    if block["class_name"] == 'List-item':
+        return " ".join(output)
+    else:
+        # 전체 줄을 개행으로 이어붙여 반환
+        return "\n".join(output)
 
 
 def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[str, int | str]]:
