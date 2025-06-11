@@ -353,11 +353,11 @@ def retryWithExponentialBackoff(initial_delay=1, exponential_base=2, jitter=True
     return decorator
 
 @retryWithExponentialBackoff(initial_delay=2, max_retries=7)
-def openAiTranslate(payload: Dict) -> List[TranslationItem]:
+def openAiTranslate(payload: Dict, src_lang, target_lang) -> List[TranslationItem]:
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": makeSystemMessage("English", "한국어")},
+            {"role": "system", "content": makeSystemMessage(src_lang, target_lang)},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
         ],
         response_format={
@@ -470,7 +470,7 @@ def removeLineBreaksFromStyledSpans(styled_spans: List[Dict]) -> List[Dict]:
     ]
 
 
-def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], summary, page_num, term_dict) -> List[Dict]:
+def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], summary, page_num, term_dict, src_lang, target_lang) -> List[Dict]:
     grouped_blocks = []
     current_group = []
     current_length = 0
@@ -513,7 +513,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
 
         while err_count < 2:
             try:
-                translated_items = openAiTranslate(payload)
+                translated_items = openAiTranslate(payload, src_lang, target_lang)
                 translated_map = {item.block_num: item.translated_text for item in translated_items}
 
                 block_error_occurred = False
@@ -529,8 +529,8 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
 
                     try:
                         styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
-                        styled_spans = assignFontFamilyToStyledSpans(styled_spans, "한국어")
-                        styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
+                        styled_spans = assignFontFamilyToStyledSpans(styled_spans, target_lang)
+                        styled_lines = buildStyledLines(styled_spans, style_dict, block["line_frames"])
                         block["styled_lines"] = styled_lines
                         print(f"✅ [Page {page_num + 1}] Block {idx}: 번역 및 스타일 처리 완료")
 
@@ -559,9 +559,9 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
         for idx, block, translated_text in failed_styling_blocks:
             try:
                 styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
-                styled_spans = assignFontFamilyToStyledSpans(styled_spans, "한국어")
+                styled_spans = assignFontFamilyToStyledSpans(styled_spans, target_lang)
                 styled_spans = removeLineBreaksFromStyledSpans(styled_spans)
-                styled_lines = buildStyledLines(styled_spans, style_dict, block["lines"])
+                styled_lines = buildStyledLines(styled_spans, style_dict, block["line_frames"])
                 block["styled_lines"] = styled_lines
                 block["to_be_translated"] = True
                 print(f"✅ [Page {page_num + 1}] Block {idx}: 개별 스타일 재처리 성공")

@@ -3,23 +3,25 @@ from preprocess.continuos_block_merge import mergeContinuosBlocks
 from preprocess.block_separate import extractTrueBlocks
 from preprocess.line_preprocess import mergeContinuosLines
 from preprocess.block_align_check import assignAlignToBlocks
-from preprocess.bbox_adjust import adjustBlocksFromYolo
+from preprocess.bbox_adjust import adjustBlocksFromYolo, normalizeAllBboxes
 from preprocess.assign_classname import assignClassNameToBlocks
 from preprocess.split_special_blocks import splitSpecialBlocks
 from preprocess.clean_blocks import cleanBlocks
 from preprocess.link_mark import markLinkToSpan
 from preprocess.mark_listitem import markListItems
+from preprocess.make_result_line_frames import assignLineFramesToBlocks
 
-def preProcess(page_info):
+def preProcess(page_info, src_lang: str, target_lang: str):
     blocks = page_info.get("blocks", [])
     yolo_objects = page_info.get("yolo_objects", [])
     links = page_info.get("links", [])
     
     blocks = cleanBlocks(blocks)
+    normalizeAllBboxes(blocks)
     
     assignClassNameToBlocks(blocks, yolo_objects)
     
-    blocks = mergeContinuosBlocks(blocks)
+    blocks = mergeContinuosBlocks(blocks, src_lang, target_lang)
     blocks = mergeContinuosLines(blocks)
     
     blocks = splitSpecialBlocks(blocks)
@@ -33,6 +35,8 @@ def preProcess(page_info):
     markLinkToSpan(blocks, links)
     
     markListItems(blocks)
+    
+    assignLineFramesToBlocks(blocks, src_lang, target_lang)
     
     page_info["blocks"] = blocks
 
@@ -79,7 +83,7 @@ if __name__ == "__main__":
   doc.save("_b.pdf", garbage=3, clean=True, deflate=True)
 
 
-def preProcessPageInfos(page_infos):
+def preProcessPageInfos(page_infos, src_lang, target_lang):
     for page_info in page_infos:
-        preProcess(page_info)
+        preProcess(page_info, src_lang, target_lang)
   

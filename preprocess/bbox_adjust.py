@@ -2,6 +2,7 @@ from text_extract.text_extract import blockText
 from util.line_utils import calculateAverageGap
 from styled_translate.assign_style import dirToRotation
 from util.block_utils import *
+from typing import Dict, List
 
 # 주어진 두 bbox가 진행 방향(rotate 기준)에서 얼마나 겹치는지 비율을 계산
 # rotate: 0/180 → x축 기준, 90/270 → y축 기준
@@ -136,9 +137,32 @@ def adjustBlocks(blocks, adjust_objects):
         if correct_ratio < 0.97:
             adjustBlockBbox(block, left, right)
             
+def normalizeAllBboxes(blocks: List[Dict]) -> None:
+    """
+    모든 block, line, span의 bbox를 [x0, y0, x1, y1] 형식으로 정규화합니다.
+    좌표가 뒤바뀐 경우(x0 > x1, y0 > y1)를 정상적인 순서로 변환합니다.
+
+    Args:
+        blocks (List[Dict]): PyMuPDF blocks 리스트
+    """
+    for block in blocks:
+        if "bbox" in block:
+            x0, y0, x1, y1 = block["bbox"]
+            block["bbox"] = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
+
+        for line in block.get("lines", []):
+            if "bbox" in line:
+                x0, y0, x1, y1 = line["bbox"]
+                line["bbox"] = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
+
+            for span in line.get("spans", []):
+                if "bbox" in span:
+                    x0, y0, x1, y1 = span["bbox"]
+                    span["bbox"] = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
+                    
+                    
 # block들의 bbox를 조정하는 함수.
 def adjustBlocksWithoutYolo(blocks):
-    
 
     for block in blocks:
         block_bbox = block.get("bbox")

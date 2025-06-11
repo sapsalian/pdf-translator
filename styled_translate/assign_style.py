@@ -29,7 +29,7 @@ class SpanStyle:
         self.is_superscript = is_superscript
         self.y_offset = y_offset  # 라인 기준에서 얼마나 떠 있는지
         self.x_gap_with_prev = x_gap_with_prev  # 이전 span과의 거리
-        self.font_size = font_size * 0.8
+        self.font_size = font_size
         self.is_italic = is_italic
         self.is_bold = is_bold
         self.font_color = font_color
@@ -180,7 +180,18 @@ def calculateXGap(prev_bbox: List[float], curr_bbox: List[float], rotate: float)
 def isSuperScript(y_offset: float, font_size: float) -> bool:
     return y_offset > font_size * 0.7
 
-def createSpanStyle(span: Dict, line_y_ref: float, prev_bbox: List[float], rotate: float) -> Tuple[SpanStyle, List[float]]:
+def getFontScale(src_lang, target_lang):
+    font_scale_map = {
+        "한국어": {
+            "English": 0.9,
+        },
+        "English": {
+            "한국어": 0.8,
+        },
+    }
+    return font_scale_map[src_lang][target_lang]
+
+def createSpanStyle(span: Dict, line_y_ref: float, prev_bbox: List[float], rotate: float, src_lang, target_lang) -> Tuple[SpanStyle, List[float]]:
     bbox = span.get("bbox", [0, 0, 0, 0])
     font_size = extractFontSize(span)
     _, is_italic, is_bold = extractFontFlags(span)
@@ -194,7 +205,7 @@ def createSpanStyle(span: Dict, line_y_ref: float, prev_bbox: List[float], rotat
         is_superscript=is_superscript_flag,
         y_offset=y_offset,
         x_gap_with_prev=x_gap,
-        font_size=font_size,
+        font_size=font_size * getFontScale(src_lang, target_lang),
         is_italic=is_italic,
         is_bold=is_bold,
         font_color=color_rgb,
@@ -220,7 +231,7 @@ def getLineReferenceY(line: Dict, rotate: float) -> float:
 
 # 전체 block 리스트 순회하며 각 span에 style_id 부여 + style 사전 생성
 # block → line → span 순으로 순회하며 스타일 분석
-def assignSpanStyle(blocks: List[Dict]) -> Dict[int, SpanStyle]:
+def assignSpanStyle(blocks: List[Dict], src_lang, target_lang) -> Dict[int, SpanStyle]:
     style_manager = StyleManager()
 
     for block in blocks:
@@ -234,7 +245,7 @@ def assignSpanStyle(blocks: List[Dict]) -> Dict[int, SpanStyle]:
 
             for span in line.get("spans", []):
                 # 현재 span에서 스타일 추출
-                style, bbox = createSpanStyle(span, line_y_ref, prev_bbox, rotate)
+                style, bbox = createSpanStyle(span, line_y_ref, prev_bbox, rotate, src_lang, target_lang)
                 prev_bbox = bbox  # 후신 span을 위한 bbox 갱신
 
                 # 스타일 ID 등록 및 span에 부여

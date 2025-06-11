@@ -136,7 +136,7 @@ def mergeBlocksByLineOverlap(blocks):
 
   
   
-def mergeBlocksByYGap(blocks):
+def mergeBlocksByYGap(blocks, src_lang, target_lang):
     """
     y 간격이 좁고 x축 너비 기준으로 50% 이상 겹치는 블락들을 병합한 새로운 블락 리스트 반환.
     병합된 block의 class_name은 가장 넓이를 많이 차지한 class_name으로 결정한다.
@@ -176,10 +176,12 @@ def mergeBlocksByYGap(blocks):
         return y2_top - y1_bottom, min_height
 
     # 두 block을 병합할 수 있는지 판단하는 함수
-    def can_merge(prev, curr):
+    def can_merge(prev, curr, src_lang, target_lang):
         vertical_gap, min_height = get_vertical_gap_and_min_height(prev, curr)
 
-        if vertical_gap > 0.5 * min_height:  # y 간격이 너무 크면 병합 불가
+        if src_lang == "English" and vertical_gap > 0.5 * min_height:
+            return False # y 간격이 크면 더 이상 병합 불가
+        if src_lang == "한국어" and vertical_gap > 0.8 * min_height:
             return False
 
         if get_x_overlap_ratio(prev, curr) < 0.5:  # x축 겹침이 50% 미만이면 병합 불가
@@ -238,10 +240,12 @@ def mergeBlocksByYGap(blocks):
                 continue
 
             vertical_gap, min_height = get_vertical_gap_and_min_height(group[-1], blocks[j])
-            if vertical_gap > 0.5 * min_height:
+            if src_lang == "English" and vertical_gap > 0.5 * min_height:
                 break  # y 간격이 크면 더 이상 병합 불가
+            if src_lang == "한국어" and vertical_gap > 0.8 * min_height:
+                break
 
-            if can_merge(group[-1], blocks[j]):
+            if can_merge(group[-1], blocks[j], src_lang, target_lang):
                 group.append(blocks[j])
                 used[j] = True
 
@@ -269,9 +273,9 @@ def mergeBlocksByYGap(blocks):
 
 
 
-def mergeContinuosBlocks(blocks):
+def mergeContinuosBlocks(blocks, src_lang, target_lang):
   blocks = mergeBlocksByLineOverlap(blocks)
-  blocks = mergeBlocksByYGap(blocks)
+  blocks = mergeBlocksByYGap(blocks, src_lang, target_lang)
   
   return blocks
 

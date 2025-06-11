@@ -7,10 +7,10 @@ from draw.draw_blocks import drawBlocks
 from draw.draw_yolo_objs import drawYoloObjects
 
 
-def translatePdf(pdf_name):
+def translatePdf(pdf_name, src_lang, target_lang):
     file_path = "inputFile/" + pdf_name
 
-    file_info = getFileInfo(file_path)
+    file_info = getFileInfo(file_path, src_lang, target_lang)
     
     term_dict = file_info["term_dict"]
     
@@ -18,28 +18,28 @@ def translatePdf(pdf_name):
     preProcessPageInfos(page_infos)
 
     for page_info in page_infos:
-        translateWithStyle(page_info, term_dict)
+        translateWithStyle(page_info, term_dict, src_lang, target_lang)
 
     output_path = "outputFile/output_" + pdf_name
     replaceTranslatedFile(page_infos, file_path, output_path)
 
 
-def translatePdfInParallel(pdf_name, max_workers=30):
+def translatePdfInParallel(pdf_name, src_lang, target_lang, max_workers=30):
     file_path = "inputFile/" + pdf_name
     
     # drawYoloObjects(file_path, pdf_name)
 
     # 파일 정보 로드 (YOLO 결과 및 페이지 분할 정보 등 포함)
-    file_info = getFileInfo(file_path, max_workers=max_workers)
+    file_info = getFileInfo(file_path, src_lang, target_lang, max_workers=max_workers)
     
     term_dict = file_info["term_dict"]  # 용어집
     page_infos = file_info["page_infos"]  # 페이지별 정보
     
-    preProcessPageInfos(page_infos)  # 텍스트 전처리 등
+    preProcessPageInfos(page_infos, src_lang, target_lang)  # 텍스트 전처리 등
 
     # 병렬 번역 처리: 각 페이지에 대해 translateWithStyle(page_info, term_dict) 호출
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        executor.map(lambda page_info: translateWithStyle(page_info, term_dict), page_infos)
+        executor.map(lambda page_info: translateWithStyle(page_info, term_dict, src_lang, target_lang), page_infos)
         
     # drawBlocks(page_infos, file_path, pdf_name, block_mark= True, class_mark= True)
 

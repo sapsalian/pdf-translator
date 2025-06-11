@@ -92,11 +92,11 @@ def adjustLinesWithGap(block: Dict, num_lines: int) -> List[Dict]:
     block["lines"]에서 상위 num_lines개의 line만 남기고,
     진행 방향에 맞춰 bbox 간격 조정
     """
-    lines = block.get("lines", [])
-    if not lines or num_lines >= len(lines):
-        return lines  # 그대로 반환
+    line_frames = block.get("line_frames", [])
+    if not line_frames or num_lines >= len(line_frames):
+        return line_frames  # 그대로 반환
 
-    selected_lines = lines[:num_lines]
+    selected_lines = line_frames[:num_lines]
     
     if len(selected_lines) == 0:
         return []
@@ -126,8 +126,14 @@ def insertLinkToBbox(page, original_link, new_from_bbox):
     newLink["from"] = pymupdf.Rect(new_from_bbox)
     # 기존 링크 객체의 참조 번호는 새 삽입에 필요 없음
     newLink.pop("xref", None)
-
-    page.insert_link(newLink)
+    newLink.pop("id", None)
+    
+    
+    try:
+        page.insert_link(newLink)
+    except:
+        print(newLink)
+        
 
 
 def makeBboxFromOrigin(origin_x: float, origin_y: float, width: float, height: float, rotation: int) -> List[float]:
@@ -160,20 +166,20 @@ def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], links:List[Di
     styled_lines = block.get("styled_lines", [])  # buildStyledLines 결과
     
     if (block.get("class_name") == "Text"):
-        lines = adjustLinesWithGap(block, len(styled_lines))  # 각 줄의 bbox
+        line_frames = adjustLinesWithGap(block, len(styled_lines))  # 각 줄의 bbox
     else:
-        lines = block["lines"]  # 각 줄의 bbox
+        line_frames = block["line_frames"]  # 각 줄의 bbox
     
     if len(styled_lines) == 0:
         return
 
-    for line, styled_line in zip(lines, styled_lines):
+    for line_frame, styled_line in zip(line_frames, styled_lines):
 
-        dir = line["dir"]
+        dir = line_frame["dir"]
         rotate = dirToRotation(dir)
         
-        line_start_hor = getLineStartHor(block, line, styled_line, rotate)
-        line_base_vert = getRotatedBbox(line["bbox"], rotate)[3]
+        line_start_hor = getLineStartHor(block, line_frame, styled_line, rotate)
+        line_base_vert = getRotatedBbox(line_frame["bbox"], rotate)[3]
 
         for positioned_span in styled_line["positioned_spans"]:
             style_id = positioned_span["style_id"]

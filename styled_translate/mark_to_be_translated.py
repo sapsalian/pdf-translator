@@ -11,14 +11,16 @@ def getBlockText(block: Dict):
     return text
     
 
-def isToBeTranslated(block: Dict) -> bool:
+def isToBeTranslated(block: Dict, src_lang, target_lang) -> bool:
     # Picture 또는 Formula 블락이면 False
     if block.get("class_name", "Text") in ["Picture", "Formula"]:
         return False
 
     # block의 텍스트 내 영 대소문자가 없으면 False
     text = getBlockText(block)
-    if not re.search(r'[A-Za-z]', text):
+    if src_lang == "English" and not re.search(r'[A-Za-z]', text):
+        return False
+    elif src_lang == "한국어" and not re.search(r'[가-힣]', text):
         return False
 
     return True
@@ -39,7 +41,7 @@ def isToBeTranslated(block: Dict) -> bool:
 '''
 
 
-def assignToBeTranslated(blocks: List[Dict]) -> List[Dict]:
+def assignToBeTranslated(blocks: List[Dict], src_lang, target_lang) -> List[Dict]:
     for block in blocks:
-        block["to_be_translated"] = isToBeTranslated(block)
+        block["to_be_translated"] = isToBeTranslated(block, src_lang, target_lang)
     return blocks

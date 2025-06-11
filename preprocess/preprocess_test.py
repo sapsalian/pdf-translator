@@ -7,7 +7,7 @@ from draw.draw_blocks import drawBlocks
 from draw.draw_yolo_objs import drawYoloObjects
 import pymupdf
 
-def preprocessedBlockDraw(pdf_name, max_workers=30):
+def preprocessedBlockDraw(pdf_name, src_lang, target_lang, max_workers=30):
     file_path = "inputFile/" + pdf_name
     
     # drawYoloObjects(file_path, pdf_name)
@@ -19,7 +19,7 @@ def preprocessedBlockDraw(pdf_name, max_workers=30):
     
     
     
-    preProcessPageInfos(page_infos)  # 텍스트 전처리 등
+    preProcessPageInfos(page_infos, src_lang, target_lang)  # 텍스트 전처리 등
     
     for page_info in page_infos:
         print(len(page_info["blocks"]))

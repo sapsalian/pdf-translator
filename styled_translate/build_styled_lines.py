@@ -62,15 +62,15 @@ def countLinesByLineBreak(styled_spans: List[Dict]):
   
 
 
-def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'], lines: List[Dict]) -> List[Dict]:
+def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'], line_frames: List[Dict]) -> List[Dict]:
     positioned_lines = []  # line 객체들의 list. 반환될 값
     
     # line 하나 꺼내기
     line_idx = 0
-    if  line_idx >= len(lines):
+    if  line_idx >= len(line_frames):
         # 넣을 line이 없다면 예외 발생시키기.
         raise NoMoreLinesError()
-    x_limit = getLineXLimit(lines, line_idx) 
+    x_limit = getLineXLimit(line_frames, line_idx) 
     cur_x = 0 # 현재 line에서 char 넣은데까지 x좌표 (line 시작점에서의 상대적인 좌표)
     span_start_x = 0  # 현재 span의 시작 x좌표 (line 시작점에서의 상대적인 좌표)
     positioned_spans = []
@@ -91,7 +91,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
     
     # styled_spans 전체 text를 개행으로 나눴을 때 나오는 줄 수가 lines 줄 수랑 같은지 미리 확인해놓기.
     # 같은 경우에는 bbox 넘어가는거 상관없이 개행에서만 다음 line으로 넘어가도록 적용해야함.
-    is_line_fixed = (countLinesByLineBreak(styled_spans) == len(lines))
+    is_line_fixed = (countLinesByLineBreak(styled_spans) == len(line_frames))
     
     while True:
         
@@ -117,7 +117,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
             
             # line 하나 꺼내기
             line_idx += 1
-            if  line_idx >= len(lines):
+            if  line_idx >= len(line_frames):
                 # line 다 쓴거면 char 하나 넘겨서 더 넣을 문자 있는지 확인하기.
                 # line은 다 썼는데 더 넣을 char 이나 span 남아 있으면 오류 발생
                 if (char_idx + 1 < len(char_widths)) or (span_idx + 1 < len(styled_spans)):
@@ -126,7 +126,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
                 
                 # 개행이 블락의 마지막 문자였다면, 다 넣은거니까 positioned_lines 반환
                 return positioned_lines
-            x_limit = getLineXLimit(lines, line_idx) 
+            x_limit = getLineXLimit(line_frames, line_idx) 
             cur_x = 0 # 현재 line에서 char 넣은데까지 x좌표
             span_start_x = 0  # 현재 span의 시작 x좌표 (line 시작점에서의 상대적인 좌표)
             new_span_text = ""
@@ -155,10 +155,10 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
             
             # line 하나 꺼내기
             line_idx += 1
-            if  line_idx >= len(lines):
+            if  line_idx >= len(line_frames):
                 # bbox 넘어갔는데 line 다 썼으면, 아직 넣을 문자 있는데 line이 부족한 것이므로 무조건 오류 발생
                 raise NoMoreLinesError()
-            x_limit = getLineXLimit(lines, line_idx) 
+            x_limit = getLineXLimit(line_frames, line_idx) 
             cur_x = 0 # 현재 line에서 char 넣은데까지 x좌표
             span_start_x = 0  # 현재 span의 시작 x좌표 (line 시작점에서의 상대적인 좌표)
             new_span_text = ""

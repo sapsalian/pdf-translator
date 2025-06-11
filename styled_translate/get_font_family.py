@@ -2,6 +2,7 @@ import pymupdf
 
 basic_font_family_map = {
     "한국어": "NotoSansKR",
+    "English": "NotoSans",
 }
 
 font_family_list = [

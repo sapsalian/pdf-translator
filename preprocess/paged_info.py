@@ -42,7 +42,7 @@ def getYoloObjectsFromRemote(file_path):
     return yolo_objects
 
 
-def getFileInfo(file_path, max_workers=30):
+def getFileInfo(file_path, src_lang, target_lang, max_workers=30):
     '''
     file_path 받아서, 페이지별 blocks 반환받는 함수. 페이지별 링크 정보도 포함.
     
@@ -70,7 +70,7 @@ def getFileInfo(file_path, max_workers=30):
     results = []
     paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
     
-    summaries_with_terms = summarizePdfInChunksParallel(file_path, max_workers=max_workers)
+    summaries_with_terms = summarizePdfInChunksParallel(file_path, source_language=src_lang, target_language=target_lang, max_workers=max_workers)
     term_dict = summaries_with_terms["term_dict"]
     summary_dict = {s["page"]: s["summary"] for s in summaries_with_terms["summaries"]}
 
