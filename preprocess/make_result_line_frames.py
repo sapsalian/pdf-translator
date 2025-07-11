@@ -21,10 +21,10 @@ from typing import List, Dict, Tuple
 4. 그룹별 line_frame들 합쳐서 result_line_frames 만들고, block의 속성에 할당
 '''
 
-def calculate_bbox_scale(src_lang: str, target_lang: str) -> float:
+def getFontScaleRatio(src_lang: str, target_lang: str) -> float:
     font_scale_map = {
         "한국어": {
-            "English": 0.7,
+            "English": 0.8,
         },
         
         "English": {
@@ -158,6 +158,9 @@ def makeLineFramesFromGroups(groups: List[List[Dict]], bbox_scale: float) -> Lis
         # 2) 평균 높이 및 평균 gap 계산 (gap은 양수만 사용)
         avg_height = calculateAverageHeight(group)
         avg_gap = calculateAverageGap(group)
+        
+        if avg_height <= 0:
+            continue
 
         # 3) 기존 라인을 축소하여 옮기기
         for i, line in enumerate(group):
@@ -184,7 +187,7 @@ def makeLineFramesFromGroups(groups: List[List[Dict]], bbox_scale: float) -> Lis
         scaled_height = avg_height * bbox_scale
         scaled_gap = avg_gap * bbox_scale
         
-        while current_y + scaled_height <= bottom_y:
+        while current_y + scaled_gap + scaled_height <= bottom_y:
             current_y += scaled_gap  # gap 먼저 적용
             line_frames.append({
                 "bbox": [left_x, current_y, right_x, current_y + scaled_height],
@@ -193,21 +196,51 @@ def makeLineFramesFromGroups(groups: List[List[Dict]], bbox_scale: float) -> Lis
             current_y += scaled_height
 
         # 5) 남은 여백을 모든 gap에 재분배 (단일 루프로 최적화)
-        final_bottom = line_frames[-1]["bbox"][3]
-        remaining_space = bottom_y - final_bottom
-        gap_count = len(line_frames) - 1
+        # final_bottom = line_frames[-1]["bbox"][3]
+        # remaining_space = bottom_y - final_bottom
+        # gap_count = len(line_frames) - 1
 
-        if gap_count > 0 and remaining_space > 0:
-            extra_gap = remaining_space / gap_count  # 각 gap에 추가할 값
-            offset = 0
-            for i in range(len(line_frames)):
-                if i > 0:
-                    offset += extra_gap  # 두 번째 line부터 누적 offset 적용
-                x0, y0, x1, y1 = line_frames[i]["bbox"]
-                line_frames[i]["bbox"] = [x0, y0 + offset, x1, y1 + offset]
+        # if gap_count > 0 and remaining_space > 0:
+        #     extra_gap = remaining_space / gap_count  # 각 gap에 추가할 값
+        #     offset = 0
+        #     for i in range(len(line_frames)):
+        #         if i > 0:
+        #             offset += extra_gap  # 두 번째 line부터 누적 offset 적용
+        #         x0, y0, x1, y1 = line_frames[i]["bbox"]
+        #         line_frames[i]["bbox"] = [x0, y0 + offset, x1, y1 + offset]
 
     return line_frames
 
+
+def assignLineFramesToBlock(block: Dict, src_lang: str, target_lang: str, font_scale: float) -> None:
+    """
+    block에 대해 line들을 그룹화하고, 축소 배율을 적용하여 line_frame들을 계산한 후
+    block["line_frames"]에 결과를 저장합니다.
+
+    Args:
+        blocks (List[Dict]): PyMuPDF의 블록 리스트. 각 block은 "lines" 키를 포함해야 함.
+        src_lang (str): 원본 언어 (예: "한국어")
+        target_lang (str): 대상 언어 (예: "English")
+
+    Returns:
+        None: 각 block이 직접 수정됨 (line_frames가 추가됨)
+    """
+    font_scale_ratio = getFontScaleRatio(src_lang, target_lang)
+
+    lines = block.get("lines", [])
+
+    if not lines:
+        block["line_frames"] = []
+        return
+
+    # 1. 라인을 가로폭 기준으로 그룹화
+    groups = groupLinesByHorizontalOverlap(lines)
+
+    # 2. 그룹을 기반으로 축소 및 보정된 라인 프레임 생성
+    line_frames = makeLineFramesFromGroups(groups, font_scale_ratio * font_scale)
+
+    # 3. 결과 저장
+    block["line_frames"] = line_frames
 
 def assignLineFramesToBlocks(blocks: List[Dict], src_lang: str, target_lang: str) -> None:
     """
@@ -222,7 +255,7 @@ def assignLineFramesToBlocks(blocks: List[Dict], src_lang: str, target_lang: str
     Returns:
         None: 각 block이 직접 수정됨 (line_frames가 추가됨)
     """
-    bbox_scale = calculate_bbox_scale(src_lang, target_lang)
+    font_scale_ratio = getFontScaleRatio(src_lang, target_lang)
 
     for block in blocks:
         lines = block.get("lines", [])
@@ -235,7 +268,7 @@ def assignLineFramesToBlocks(blocks: List[Dict], src_lang: str, target_lang: str
         groups = groupLinesByHorizontalOverlap(lines)
 
         # 2. 그룹을 기반으로 축소 및 보정된 라인 프레임 생성
-        line_frames = makeLineFramesFromGroups(groups, bbox_scale)
+        line_frames = makeLineFramesFromGroups(groups, font_scale_ratio)
 
         # 3. 결과 저장
         block["line_frames"] = line_frames

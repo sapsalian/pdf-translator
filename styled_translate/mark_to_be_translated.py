@@ -13,7 +13,7 @@ def getBlockText(block: Dict):
 
 def isToBeTranslated(block: Dict, src_lang, target_lang) -> bool:
     # Picture 또는 Formula 블락이면 False
-    if block.get("class_name", "Text") in ["Picture", "Formula"]:
+    if block.get("class_name", "Text") in ["Formula"]:
         return False
 
     # block의 텍스트 내 영 대소문자가 없으면 False

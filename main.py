@@ -17,13 +17,13 @@ if __name__ == "__main__":
         for filename in os.listdir(input_folder):
             if filename.lower().endswith(".pdf"):
                 print(f"Processing: {filename}")
-                # preprocessedBlockDraw(filename, "한국어", "English", 50)
-                translatePdfInParallel(filename, "한국어", "English", 50)
+                # preprocessedBlockDraw(filename, "English", "한국어", 50)
+                translatePdfInParallel(filename, "English", "한국어", 50)
     else:
         # 지정된 파일만 처리
         pdf_name = sys.argv[1]
         print(f"Processing: {pdf_name}")
-        translatePdfInParallel(pdf_name, "한국어", "English", 50)
+        translatePdfInParallel(pdf_name, "English", "한국어", 50)
         # printEscapedBlocksFromPdf("inputFile/" +pdf_name, 3)
         # preprocessedBlockDraw(pdf_name, "한국어", "English", 50)
         

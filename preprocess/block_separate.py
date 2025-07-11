@@ -36,23 +36,25 @@ def is_indent(prev_line, line):
     span_width = x1 - x0  
     avg_char_width = span_width / len(span["text"])
     
-    return line_x - prev_x >= avg_char_width * 0.8
+    return line_x - prev_x >= avg_char_width * 0.4
 
-def ends_with_punctuation(prev_line, _, block_bbox, align):
+def ends_with_punctuation(prev_line, _, block_bbox, align, src_lang, target_lang):
     # 이전 줄이 마침 기호로 끝나는가(동시에 좌측 정렬일 때는 block 너비의 97% 이하여야 함.)
     
+    END_PUNCTUATIONS = {'.', ':', '!', '?', '”', '"'}
     text = "".join(span["text"] for span in prev_line["spans"]).strip()
-    return text and text[-1] in ".:!?" and (align == ALIGN_CENTER or is_short_line(prev_line, _, block_bbox, 0.97))
+    
+    return text and text[-1] in END_PUNCTUATIONS and (align == ALIGN_CENTER or isShortLine(prev_line, _, block_bbox,src_lang =src_lang, target_lang=target_lang, ratio = 0.97))
 
 # --- 블록 분리 여부 판단 함수 ---
 
-def should_split_block(prev_line, line, block_bbox, align):
+def should_split_block(prev_line, line, block_bbox, align, src_lang, target_lang, class_name="Text"):
     # print (lineText(prev_line) + "////" + lineText(line))
     if align == ALIGN_CENTER:
       return any([
-        ends_with_punctuation(prev_line, line, block_bbox, align),
+        ends_with_punctuation(prev_line, line, block_bbox, align, src_lang=src_lang, target_lang=target_lang),
         startsWithBullet(prev_line, line),
-        startsWithNumberedList(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
+        startsWithNumberedList(prev_line, line, True) and not (class_name != "List-item" and isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
       ])
 
     # print(
@@ -65,11 +67,12 @@ def should_split_block(prev_line, line, block_bbox, align):
     # )
     return any([
         is_indent(prev_line, line),
-        ends_with_punctuation(prev_line, line, block_bbox, align),
-        is_short_line(prev_line, line, block_bbox),
+        ends_with_punctuation(prev_line, line, block_bbox, align, src_lang=src_lang, target_lang=target_lang),
+        isShortLine(prev_line, line, block_bbox, src_lang=src_lang, target_lang=target_lang) and not isSameFontSize(prev_line, line),
         # starts_with_upper(prev_line, line),
         startsWithBullet(prev_line, line),
-        startsWithNumberedList(prev_line, line, True) and not (isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
+        startsWithNumberedList(prev_line, line, True) and not (class_name != "List-item" and isLineFull(prev_line, block_bbox) and isLinesStartWithSameX(prev_line, line, False)),
+        class_name == 'List-item' and not isSameFontSize(prev_line, line),
     ])
 
 
@@ -88,7 +91,7 @@ def calculate_bbox(current_block_lines, original_block):
 
 # --- 메인 블록 분리 함수 ---
 
-def separateBlock(block):
+def separateBlock(block, src_lang, target_lang):
     lines = block.get("lines", [])
     if not lines:
         return []
@@ -97,6 +100,7 @@ def separateBlock(block):
     current_block = [lines[0]]
     prev_line = lines[0]
     current_bbox = list(prev_line["bbox"])  # ← 리스트로 바꿔야 값 변경 가능
+    current_class = "List-item" if startsWithBullet(None, lines[0]) or startsWithNumberedList(None, lines[0]) else block.get("class_name", "Text")
 
     def update_bbox(bbox1, bbox2):
         # bbox1을 bbox2를 포함하도록 확장
@@ -109,17 +113,18 @@ def separateBlock(block):
         
 
     for line in lines[1:]:
-        if (should_split_block(prev_line, line, block["bbox"], block["align"]) if len(current_block) == 1 else should_split_block(prev_line, line, current_bbox, block["align"])):
+        if (should_split_block(prev_line, line, update_bbox(current_bbox, line["bbox"]), block["align"], src_lang=src_lang, target_lang=target_lang, class_name=current_class)):
             separated_blocks.append({
                 "type": block.get("type", 0),
                 "align": block.get("align", ALIGN_LEFT),
-                "class_name": block.get("class_name", "Text"),
+                "class_name": current_class,
                 "original_bbox": current_bbox,
                 "bbox": current_bbox,
                 "lines": current_block
             })
             current_block = [line]
             current_bbox = list(line["bbox"])  # 새 블록 시작 시 bbox 초기화
+            current_class = "List-item" if startsWithBullet(prev_line, line) or startsWithNumberedList(prev_line, line) else block.get("class_name", "Text")
         else:
             current_block.append(line)
             current_bbox = update_bbox(current_bbox, line["bbox"])  # 기존 bbox 확장
@@ -130,7 +135,7 @@ def separateBlock(block):
         separated_blocks.append({
             "type": block.get("type", 0),
             "align": block.get("align", ALIGN_LEFT),
-            "class_name": block.get("class_name", "Text"),
+            "class_name": current_class,
             "original_bbox": current_bbox,
             "bbox": current_bbox,
             "lines": current_block
@@ -138,11 +143,11 @@ def separateBlock(block):
 
     return separated_blocks
 
-def extractTrueBlocks(blocks):
+def extractTrueBlocks(blocks, src_lang, target_lang):
   new_blocks = []
   
   for b in blocks:  
-    separatedBlocks = separateBlock(b)
+    separatedBlocks = separateBlock(b, src_lang=src_lang, target_lang=target_lang)
     new_blocks.extend(separatedBlocks)
     
   return new_blocks

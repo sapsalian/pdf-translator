@@ -41,6 +41,9 @@ def validCharInFontFamily(char: str, font_family: str):
 target 언어, 문자하나 받아서 font_family를 문자열로 반환하는 함수
 '''
 def getFontFamily(char:str, target_languge: str):
+    if (char == '\n'):
+        return 'NotoSans'
+    
     basic_font_family = basic_font_family_map[target_languge]
     
     if validCharInFontFamily(char, basic_font_family):
@@ -50,7 +53,7 @@ def getFontFamily(char:str, target_languge: str):
         if validCharInFontFamily(char, font_family):
             return font_family
         
-    return "NotoSans"
+    raise Exception(f"U+{ord(char):04X}을 커버할 수 있는 font family 존재하지 않음")
     
 
 def hasBold(font_family: str):

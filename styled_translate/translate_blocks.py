@@ -9,153 +9,165 @@ import time
 import random
 import re
 import json
+import traceback
 # from anthropic import Anthropic
 from util.block_utils import ALIGN_CENTER, ALIGN_LEFT
 from styled_translate.assign_fontfamily import assignFontFamilyToStyledSpans
+from preprocess.make_result_line_frames import assignLineFramesToBlock
+from styled_translate.assign_style import getFontScale
 
 client = OpenAI()
 # anthropic_client = Anthropic()
 
 def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> str:
     """
-    block의 span들을 순회하며 다음과 같은 처리를 수행:
-    
-    - block["primary_style_id"]에 해당하는 span은 그대로 출력
-    - 그렇지 않은 스타일은 [[n]]...[[/n]] 형식으로 감쌈
-      - 단, superscript인 경우 [[s{n}]]...[[/s{n}]] 형식 사용
-    - span 간의 x 간격이 평균 글자 너비의 0.9배 이상이면 공백(" ") 삽입
-    - 줄(line)이 바뀔 때마다 줄 간 개행 삽입
+    텍스트 블록 내 span들을 순회하면서 스타일 정보를 포함한 문자열을 생성합니다.
+
+    처리 로직:
+    1. 기본 스타일(span["style_id"] == primary_style_id) → 태그 없이 텍스트 출력
+    2. 다른 스타일 → {{style_id}}...{{/style_id}} 형식의 태그로 감쌈
+       - 만약 superscript 스타일이면 s 접두어: {{s5}}...{{/s5}}
+    3. 두 span 사이 x 간격이 평균 글자 너비의 0.9배 이상이면 공백(" ") 추가
+    4. 줄(line)이 바뀔 때마다 개행 문자('\n') 삽입
+    5. 단, class_name이 'List-item'이면 줄 개행 대신 공백으로 이어붙임
 
     Args:
-        block (Dict): PyMuPDF의 텍스트 블록 (type=0)
-        style_dict (Dict[int, SpanStyle]): 스타일 ID → SpanStyle 매핑
+        block (Dict): PyMuPDF에서 추출한 하나의 텍스트 블록 (type == 0)
+        style_dict (Dict[int, SpanStyle]): style_id를 키로 하는 스타일 객체 매핑
 
     Returns:
-        str: 스타일 태그 및 공백이 포함된 문자열
+        str: 스타일 태그 및 공백이 포함된 출력 문자열
     """
+
+    # 기준이 되는 기본 스타일 ID
     primary_id = block.get("primary_style_id")
-    output = []
+    output = []  # 줄(line) 단위로 누적할 출력 결과 리스트
 
     for line in block.get("lines", []):
-        line_text = ""          # 현재 줄의 누적 문자열
-        prev_span = None        # 이전 span 저장용
+        line_text = ""   # 현재 줄의 텍스트 누적 버퍼
+        prev_span = None # 이전 span의 정보를 저장
 
         for span in line.get("spans", []):
             span_text = span.get("text", "")
             style_id = span.get("style_id")
 
-            # 이전 span과의 간격(gap)에 따라 공백 삽입 여부 결정
+            # 이전 span과의 x축 간격(gap)을 기준으로 공백 삽입 판단
             if prev_span is not None:
-                prev_end = prev_span["bbox"][2]       # 이전 span의 x 끝 좌표
-                curr_start = span["bbox"][0]          # 현재 span의 x 시작 좌표
-                gap = curr_start - prev_end           # 두 span 간 간격
+                prev_end = prev_span["bbox"][2]     # 이전 span의 x 끝 좌표
+                curr_start = span["bbox"][0]        # 현재 span의 x 시작 좌표
+                gap = curr_start - prev_end         # 두 span 간의 간격
 
-                # 글자 너비 추정
+                # 평균 글자 너비 계산 (divide-by-zero 방지)
                 prev_width = prev_span["bbox"][2] - prev_span["bbox"][0]
                 curr_width = span["bbox"][2] - span["bbox"][0]
-
-                # 문자당 평균 너비 계산 (0 division 방지)
                 prev_char_width = prev_width / max(len(prev_span["text"]), 1)
                 curr_char_width = curr_width / max(len(span_text), 1)
                 avg_char_width = (prev_char_width + curr_char_width) / 2
 
-                # gap이 평균 글자 너비의 0.9배 이상이면 공백 추가
+                # 간격이 평균 글자 너비의 0.9배 이상이면 공백 삽입
                 if gap >= avg_char_width * 0.9:
                     line_text += " "
 
-            # 스타일 태그 처리
+            # 스타일 태그 삽입
             if style_id == primary_id:
-                # 주 스타일이면 태그 없이 그대로 출력
+                # 기본 스타일이면 태그 없이 원문 삽입
                 line_text += span_text
             else:
-                # superscript면 태그에 's' 접두어 추가
+                # 비기본 스타일은 {{style_id}}...{{/style_id}}로 감쌈
                 style = style_dict.get(style_id)
                 tag_prefix = f"s{style_id}" if style and style.is_superscript else f"{style_id}"
-                line_text += f"[[{tag_prefix}]]{span_text}[[/{tag_prefix}]]"
+                # f-string 중괄호 이스케이프 위해 {{{{ }}}} 사용
+                line_text += f"{{{{{tag_prefix}}}}}{span_text}{{{{/{tag_prefix}}}}}"
 
-            prev_span = span  # 다음 span을 위한 갱신
+            # 현재 span을 다음 비교를 위해 저장
+            prev_span = span
 
-        # 줄(line) 단위로 누적, 줄 간에는 개행 삽입
+        # 줄 단위로 저장 (줄 개행은 이후 처리)
         output.append(line_text)
 
-    # List item일 때는 개행으로 이어붙이지 않기.
-    if block["class_name"] == 'List-item':
-        return " ".join(output)
-    else:
-        # 전체 줄을 개행으로 이어붙여 반환
+    # 'List-item'이면 줄 단위 출력이 아니라 한 줄로 이어 붙임
+    if block.get("align", ALIGN_LEFT) == ALIGN_CENTER or block.get("class_name", "Text") == 'Picture' or block.get("class_name", "Text") == 'Table' or block.get("class_name", "Text") == 'Formula':
         return "\n".join(output)
+    else:
+        return " ".join(output)
 
 
-def parseStyledText(translated_text: str, primary_style_id: int) -> List[Dict[str, int | str]]:
+
+import re
+from typing import List, Dict
+
+def parseStyledText(translated_text: str, primary_style_id: int, style_dict: Dict) -> List[Dict[str, int | str]]:
     """
-    stack 없이 현재 style 번호만으로 동작.
+    {{n}}, {{/n}}, {{s5}} 같은 스타일 태그가 포함된 문자열을 파싱하여
+    style_id와 텍스트를 묶은 span 리스트로 반환합니다.
 
-    동작 방식:
-    - 열림 태그: 현재까지 text flush, current_style 업데이트
+    ✔ 스택 없이 현재 스타일 ID만을 추적해 파싱 처리
+    ✔ 기본 스타일(primary_style_id)은 태그 없이 적용
+    ✔ superscript 태그는 's' 접두어가 붙음 (예: {{s5}})
+
+    처리 방식:
+    - 열림 태그: 직전 텍스트 flush → current_style을 해당 태그로 변경
     - 닫힘 태그:
-        - current_style == 닫힘 style → text flush, primary_style로 복귀
-        - current_style != 닫힘 style → current_style만 primary_style로 복귀, 닫힘 태그 무시
+        - current_style == 닫는 태그 ID면 → flush + primary로 복귀
+        - current_style != 닫는 태그 ID면 → flush만 하고 current_style 강제 복귀
 
     Args:
-        translated_text (str): [[5]]텍스트[[/5]], [[s4]]텍스트[[/s4]] 형식 문자열
+        translated_text (str): 예: {{5}}텍스트{{/5}}, {{s4}}텍스트{{/s4}} 형식 문자열
         primary_style_id (int): 기본 스타일 ID
+        style_dict (dict): style_id → SpanStyle 매핑
 
     Returns:
         List[Dict[str, int | str]]: 스타일 적용된 span 리스트
     """
 
-    # /, //, \/, ／ 처리 + 공백 허용
-    tag_pattern = re.compile(r'\[\s*\[\s*(/{1,2}|\\?/|／)?\s*(s?\d+)\s*\]\s*\]')
+    # 태그 탐지용 정규표현식 (열림/닫힘 모두 인식)
+    # 예: {{5}}, {{/5}}, {{s4}}, {{／s4}}, {{\s4}} 등
+    tag_pattern = re.compile(r'\{\s*\{\s*(/{1,2}|\\?/|／)?\s*(s?\d+)\s*\}\s*\}')
 
     result = []
     last_index = 0
     current_style = primary_style_id
 
     for match in tag_pattern.finditer(translated_text):
-        prefix = match.group(1) or ''        # '/', '//', '\/', '／' 중 하나 또는 ''
-        tag = match.group(2)                # '5', 's4'
+        prefix = match.group(1) or ''         # 닫힘 여부 판단용 접두어: '/', '//', '\/', '／' 등
+        tag = match.group(2)                  # '5', 's4'
         start, end = match.span()
-        is_closing = '/' in prefix or '／' in prefix  # 닫힘 태그 판별
-        clean_tag = tag.lstrip('s')
+        is_closing = '/' in prefix or '／' in prefix  # 닫힘 태그 여부 판단
+        clean_tag = tag.lstrip('s')           # 's4' → '4'
         style_id = int(clean_tag)
-        
-        '''
-        여는 태그면 
-          - 앞에 있는거 싹 다 모아서 primary_style 지정
-          - current_style 갱신
-        닫는 태그면 
-          - 앞에 있는거 싹 다 모아서, 현재 style이랑 일치하면 현재 style, 아니면 primary로 지정
-          - current_style을 primary로 갱신 
-        '''
 
+        # 태그 앞 텍스트 추출
         text = translated_text[last_index:start]
 
         if is_closing:
+            # 닫힘 태그인 경우
             if text:
                 result.append({
-                    "style_id": current_style if current_style == style_id else primary_style_id,
+                    "style_id": current_style if current_style == style_id and style_id in style_dict else primary_style_id,
                     "text": text
                 })
-            current_style = primary_style_id
+            current_style = primary_style_id  # 닫힘 시 항상 기본 스타일로 복귀
         else:
+            # 열림 태그인 경우
             if text:
                 result.append({
                     "style_id": primary_style_id,
                     "text": text
                 })
-            current_style = style_id
+            current_style = style_id  # 새 스타일로 갱신
 
         last_index = end
 
+    # 마지막 태그 뒤 남은 텍스트 처리
     if last_index < len(translated_text):
         text = translated_text[last_index:]
         if text:
-            result.append({"style_id": primary_style_id, "text": text})
+            result.append({
+                "style_id": primary_style_id,
+                "text": text
+            })
 
     return result
-
-
-
 
 
 
@@ -183,6 +195,7 @@ Output JSON (must match exactly):
 
 - Keep order and length identical to `blocks`.
 - If `text` is empty → `"translated_text": ""`.
+- **If the `text` is already in {tgt_lang}, return an empty `"translated_text": ""`.**
 
 ###############################
 2️⃣ Glossary & Entities
@@ -200,18 +213,22 @@ Priority: term_dict > Named-entity (proper noun) > general translation.
 ###############################
 3️⃣ Tag & Formatting Rules
 ###############################
-Tag set: [[N]] [[/N]], [[sN]] [[/sN]]
+Tag set: {{{{N}}}} {{{{/N}}}}, {{{{sN}}}} {{{{/sN}}}}
 - Copy tags exactly as they appear (verbatim), and maintain their structure.
-- Do **not** translate inside [[sN]]…[[/sN]].
+- Do **not** translate inside {{{{sN}}}}…{{{{/sN}}}}.
 - No new tags, no tag deletion.
 
 ↩ Intelligent line-break handling
-- The source text may contain line breaks (\\n) introduced by PDF extraction.
-- These are often not meaningful. Ignore them during translation.
-- Translate the text naturally and fluently, as if no line breaks exist.
-- After translation, reinsert a line break **only if** it reflects a true semantic or structural boundary (e.g., between formulas, list items, or paragraphs).
-- Otherwise, remove the line break and merge the content smoothly.
-- Do **not** insert any new line breaks that were not in the original.
+- The input consists of English text extracted from a PDF.
+- Sentences may be split across lines due to line breaks.
+- Some line breaks are meaningful (e.g., between formulas, bullet points, or separate thoughts).
+- Others are artificial (caused by line wrapping).
+- Carefully examine the context and judge whether each break is meaningful.
+- Preserve only meaningful line breaks.
+- If two lines read smoothly as a single sentence, remove the break and join them naturally.
+- Never introduce new line breaks that were not in the input.
+- Your goal is to produce a fluent translation that respects the original structure.
+
 
 ###############################
 4️⃣ Block Matching Integrity
@@ -355,7 +372,8 @@ def retryWithExponentialBackoff(initial_delay=1, exponential_base=2, jitter=True
 @retryWithExponentialBackoff(initial_delay=2, max_retries=7)
 def openAiTranslate(payload: Dict, src_lang, target_lang) -> List[TranslationItem]:
     completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4.1-mini",
+        # temperature=0.0,
         messages=[
             {"role": "system", "content": makeSystemMessage(src_lang, target_lang)},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
@@ -465,110 +483,151 @@ def removeLineBreaksFromStyledSpans(styled_spans: List[Dict]) -> List[Dict]:
     각 항목은 {"style_id": int, "text": str} 형식입니다.
     """
     return [
-        {"style_id": span["style_id"], "text": span["text"].replace("\n", " ")}
+        {"style_id": span["style_id"], "text": span["text"].replace("\n", " "), 'font_family': span["font_family"]}
         for span in styled_spans
     ]
 
 
 def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], summary, page_num, term_dict, src_lang, target_lang) -> List[Dict]:
-    grouped_blocks = []
-    current_group = []
-    current_length = 0
+    def group_blocks_for_translation(target_blocks, max_length=3500):
+        grouped, group, current_len = [], [], 0
+        for idx, block in target_blocks:
+            styled_text = blockTextWithStyleTags(block, style_dict)
+            if current_len + len(styled_text) > max_length and group:
+                grouped.append(group)
+                group, current_len = [], 0
+            group.append((idx, block, styled_text))
+            current_len += len(styled_text)
+        if group:
+            grouped.append(group)
+        return grouped
 
-    print(f"\n📄 [Page {page_num + 1}] 번역할 블록 스타일링 및 그룹핑 시작")
-
-    # 그룹 나누기
-    for idx, block in enumerate(blocks):
-        if not block.get("to_be_translated", False):
-            continue
-
-        styled_text = blockTextWithStyleTags(block, style_dict)
-
-        if current_length + len(styled_text) > 1000 and current_group:
-            grouped_blocks.append(current_group)
-            current_group = []
-            current_length = 0
-
-        current_group.append((idx, block, styled_text))
-        current_length += len(styled_text)
-
-    if current_group:
-        grouped_blocks.append(current_group)
-
-    print(f"🧩 [Page {page_num + 1}] 총 {len(grouped_blocks)}개 그룹으로 분할 완료")
-
-    failed_styling_blocks = []  # 스타일링 실패 블록 저장용
-
-    # 그룹별 번역 처리
-    for group_num, group in enumerate(grouped_blocks, 1):
-        block_indices = [idx for idx, _, _ in group]
-        print(f"\n🛰️ [Page {page_num + 1}] Group {group_num}: 블록 {block_indices} 번역 요청")
-
+    def process_group(group):
         payload = {
             'term_dict': term_dict,
             'summary': summary,
             'blocks': [{"block_num": idx, "text": styled_text} for idx, _, styled_text in group]
         }
-        err_count = 0
+        translated_items = openAiTranslate(payload, src_lang, target_lang)
+        return {item.block_num: item.translated_text for item in translated_items}
 
-        while err_count < 2:
+    print(f"\n📄 [Page {page_num}] 번역할 블록 스타일링 및 그룹핑 시작")
+    initial_targets = [(idx, block) for idx, block in enumerate(blocks) if block.get("to_be_translated", False)]
+    retry_blocks = initial_targets
+    failed_blocks = []
+
+    for round_num in range(1, 4):
+        print(f"\n🔄 [Page {page_num}] 라운드 {round_num} 번역 시도")
+        grouped_blocks = group_blocks_for_translation(retry_blocks)
+        failed_blocks = []
+        new_retry_blocks = []
+
+        for group_num, group in enumerate(grouped_blocks, 1):
+            print(f"🛰️ [Page {page_num}] Group {group_num}: 번역 요청")
             try:
-                translated_items = openAiTranslate(payload, src_lang, target_lang)
-                translated_map = {item.block_num: item.translated_text for item in translated_items}
-
-                block_error_occurred = False
-
+                translated_map = process_group(group)
+                
+                # 🔧 1. 응답에 포함된 block_num들과 요청한 block_num들 비교
+                translated_block_nums = set(translated_map.keys())
+                group_block_nums = {idx for idx, _, _ in group}
+                missing_block_nums = group_block_nums - translated_block_nums
                 for idx, block, _ in group:
+                    # 🔧 2. 응답에 빠진 블록은 retry 대상에 추가
+                    if idx in missing_block_nums:
+                        print(f"⚠️ [Page {page_num}] Block {idx}: 응답 누락 → 재시도 대상으로 등록")
+                        new_retry_blocks.append((idx, block))
+                        continue
+                    
                     translated_text = translated_map.get(idx, '')
-                    block["to_be_translated"] = True
-
-                    if translated_text.strip() == '':
-                        print(f"⚠️ [Page {page_num + 1}] Block {idx}: 빈 결과 → 제외")
+                    if not translated_text.strip():
                         block["to_be_translated"] = False
                         continue
-
                     try:
-                        styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
+                        styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0), style_dict=style_dict)
                         styled_spans = assignFontFamilyToStyledSpans(styled_spans, target_lang)
-                        styled_lines = buildStyledLines(styled_spans, style_dict, block["line_frames"])
+                        # for span in styled_spans:
+                        #     print(span["text"], span["style_id"])
+                        assignLineFramesToBlock(block, src_lang, target_lang, font_scale=getFontScale(src_lang, target_lang))
+                        styled_lines = buildStyledLines(styled_spans, style_dict, block)
                         block["styled_lines"] = styled_lines
-                        print(f"✅ [Page {page_num + 1}] Block {idx}: 번역 및 스타일 처리 완료")
-
-                    except Exception as block_error:
-                        print(f"❌ [Page {page_num + 1}] Block {idx}: 스타일 처리 실패 → 그룹 전체 재시도")
-                        print(f"     이유: {block_error}")
-                        failed_styling_blocks.append((idx, block, translated_text))
-                        block_error_occurred = True
-                        break
-
-                if block_error_occurred:
-                    raise Exception("그룹 내 블럭 처리 중 에러 발생 → 그룹 재시도")
-                else:
-                    print(f"🎉 [Page {page_num + 1}] Group {group_num} 처리 완료")
-                    break
-
+                        block["to_be_translated"] = True
+                        block["scale"] = 1.0
+                        print(f"✅ [Page {page_num}] Block {idx} 처리 완료")
+                    except Exception as styling_error:
+                        print(f"❌ [Page {page_num}] Block {idx} 스타일 실패: {styling_error}")
+                        failed_blocks.append((idx, block, translated_text))
+                        # new_retry_blocks.append((idx, block)) # 스타일 실패한 블락은 번역 요청 재시도 하지 않기.
             except Exception as e:
-                err_count += 1
-                print(f"🔁 [Page {page_num + 1}] Group {group_num} 번역 재시도 {err_count}/5: {e}")
-                if err_count >= 5:
-                    print(f"❗ [Page {page_num + 1}] Group {group_num} 처리 실패 (최대 시도 초과)")
+                print(f"❗ [Page {page_num}] Group {group_num} 번역 실패: {e}")
+                failed_blocks.extend([(idx, block, translated_text) for idx, block, translated_text in group])
 
-    # 실패한 블록들 스타일 처리 마지막 시도
-    if failed_styling_blocks:
-        print(f"\n🛠️ [Page {page_num + 1}] 그룹 재시도 실패한 블록들 개별 재처리 시도 중...")
-        for idx, block, translated_text in failed_styling_blocks:
-            try:
-                styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0))
-                styled_spans = assignFontFamilyToStyledSpans(styled_spans, target_lang)
-                styled_spans = removeLineBreaksFromStyledSpans(styled_spans)
-                styled_lines = buildStyledLines(styled_spans, style_dict, block["line_frames"])
-                block["styled_lines"] = styled_lines
-                block["to_be_translated"] = True
-                print(f"✅ [Page {page_num + 1}] Block {idx}: 개별 스타일 재처리 성공")
-            except Exception as final_error:
-                block["to_be_translated"] = False
-                print(f"❌ [Page {page_num + 1}] Block {idx}: 개별 재처리 실패 → 제외됨")
+        retry_blocks = new_retry_blocks
+        failed_blocks = failed_blocks
+
+        if not retry_blocks:
+            break
+
+    if failed_blocks:
+        print(f"\n🛠️ [Page {page_num }] Scale 줄여가며 삽입 재시도")
+    failed_blocks2 = []
+    for idx, block, translated_text in failed_blocks:
+        try:
+            styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0), style_dict=style_dict)
+            styled_spans = assignFontFamilyToStyledSpans(styled_spans, target_lang)
+            # for span in styled_spans:
+            #     print(span["text"], span["style_id"])
+            
+            scale = 1.0
+            while True:
+                try:
+                    assignLineFramesToBlock(block, src_lang, target_lang, font_scale=getFontScale(src_lang, target_lang) * scale)
+                    styled_lines = buildStyledLines(styled_spans, style_dict, block, scale=scale)
+                    break
+                except Exception as e:
+                    if scale < 0.45:
+                        raise Exception("scale 줄여 삽입시도 실패")
+                    scale = scale * 0.99
+            
+            block["styled_lines"] = styled_lines
+            block["to_be_translated"] = True
+            block["scale"] = scale
+            print(f"✅ [Page {page_num}] Block {idx}: scale 줄여 삽입시도 성공")
+        except Exception as e:
+            failed_blocks2.append((idx, block, translated_text))
+            print(f"❌ [Page {page_num}] Block {idx}: scale 줄여 삽입시도 실패")
+            traceback.print_exc()
+    
+    if failed_blocks2:
+        print(f"\n🛠️ [Page {page_num}] 개행 제거 후 scale 줄여가며 최종 스타일 재시도")
+    for idx, block, translated_text in failed_blocks2:
+        try:
+            styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0), style_dict=style_dict)
+            styled_spans = assignFontFamilyToStyledSpans(styled_spans, target_lang)
+            # for span in styled_spans:
+            #     print(span["text"], span["style_id"])
+            styled_spans = removeLineBreaksFromStyledSpans(styled_spans)
+            
+            scale = 1.0
+            while True:
+                try:
+                    assignLineFramesToBlock(block, src_lang, target_lang, font_scale=getFontScale(src_lang, target_lang) * scale)
+                    styled_lines = buildStyledLines(styled_spans, style_dict, block, scale=scale)
+                    break
+                except Exception as e:
+                    if scale < 0.4:
+                        raise Exception("scale 줄여 삽입시도 실패")
+                    scale = scale * 0.99
+            
+            block["styled_lines"] = styled_lines
+            block["to_be_translated"] = True
+            block["scale"] = scale
+            print(f"✅ [Page {page_num}] Block {idx}: 최종 개행 제거 성공")
+        except Exception as e:
+            print(f"❌ [Page {page_num}] Block {idx}: 개행 제거 후 재시도 실패: {e}")
+            block["to_be_translated"] = False
+            traceback.print_exc()
 
     return blocks
+
 
 

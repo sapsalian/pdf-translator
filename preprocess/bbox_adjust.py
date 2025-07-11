@@ -176,5 +176,4 @@ def adjustBlocksWithoutYolo(blocks):
 # YOLO 결과 중 텍스트 블럭으로 판단되는 것만 필터링하여 adjustBlocks 호출
 def adjustBlocksFromYolo(blocks, yolo_objects):
     adjust_objects = [b for b in yolo_objects if b["class_name"] not in ["Picture", "Table", "Formula"]]
-    # adjustBlocks(blocks, adjust_objects)
-    adjustBlocksWithoutYolo(blocks)
+    adjustBlocks(blocks, adjust_objects)

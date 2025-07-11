@@ -1,6 +1,7 @@
 from typing import List, Dict
 from styled_translate.get_font import getFont
 from styled_translate.assign_style import SpanStyle, dirToRotation
+from util.block_utils import *
 
 
 class NoMoreLinesError(Exception):
@@ -9,7 +10,7 @@ class NoMoreLinesError(Exception):
         super().__init__(message)
 
 
-def getCharWidths(styled_span: Dict, style_dict: Dict[int, 'SpanStyle']) -> List[float]:
+def getCharWidths(styled_span: Dict, style_dict: Dict[int, 'SpanStyle'], scale = 1.0) -> List[float]:
     """
     styled_span과 style_dict를 사용해 char_widths를 반환하는 함수.
 
@@ -22,10 +23,11 @@ def getCharWidths(styled_span: Dict, style_dict: Dict[int, 'SpanStyle']) -> List
     """
     text = styled_span["text"]
     style_id = styled_span["style_id"]
+    # print(text, style_id)
     font_family = styled_span["font_family"]
     style = style_dict[style_id]
     font = getFont(style, font_family)  # SpanStyle 기반 폰트 객체 반환 함수
-    char_widths = font.char_lengths(text, fontsize=style.font_size)  # tuple로 반환됨
+    char_widths = font.char_lengths(text, fontsize=style.font_size * scale)  # tuple로 반환됨
     return list(char_widths)
 
 def getXgap(styled_span: Dict, style_dict: Dict[int, 'SpanStyle']) -> float:
@@ -62,7 +64,8 @@ def countLinesByLineBreak(styled_spans: List[Dict]):
   
 
 
-def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'], line_frames: List[Dict]) -> List[Dict]:
+def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'], block: Dict, scale = 1.0) -> List[Dict]:
+    line_frames = block["line_frames"]
     positioned_lines = []  # line 객체들의 list. 반환될 값
     
     # line 하나 꺼내기
@@ -82,7 +85,7 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
         # span이 아예 없는 것이므로 빈 리스트 반환
         return positioned_lines
     cur_span = styled_spans[span_idx]  # 현재 탐색중인 span
-    char_widths = getCharWidths(cur_span, style_dict)  # 현재 탐색중인 span에서 얻은 char_widths
+    char_widths = getCharWidths(cur_span, style_dict, scale=scale)  # 현재 탐색중인 span에서 얻은 char_widths
     char_idx = 0  # 현재 넣을 문자 index(cur_sapn에서)
     new_span_text = ""  # 현재 positioned_span에 들어가기 위해 쌓인 text
     cur_x += getXgap(cur_span, style_dict)
@@ -91,7 +94,11 @@ def buildStyledLines(styled_spans: List[Dict], style_dict: Dict[int, 'SpanStyle'
     
     # styled_spans 전체 text를 개행으로 나눴을 때 나오는 줄 수가 lines 줄 수랑 같은지 미리 확인해놓기.
     # 같은 경우에는 bbox 넘어가는거 상관없이 개행에서만 다음 line으로 넘어가도록 적용해야함.
-    is_line_fixed = (countLinesByLineBreak(styled_spans) == len(line_frames))
+    # is_line_fixed = (countLinesByLineBreak(styled_spans) == len(line_frames))
+    is_line_fixed = (countLinesByLineBreak(styled_spans) == len(block.get("lines", []))) and block["align"] == ALIGN_CENTER
+    
+    if is_line_fixed:
+        line_frames = block.get("lines", [])
     
     while True:
         

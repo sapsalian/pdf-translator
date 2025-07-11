@@ -183,7 +183,7 @@ def isSuperScript(y_offset: float, font_size: float) -> bool:
 def getFontScale(src_lang, target_lang):
     font_scale_map = {
         "한국어": {
-            "English": 0.9,
+            "English": 0.90,
         },
         "English": {
             "한국어": 0.8,

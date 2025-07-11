@@ -87,6 +87,13 @@ def shiftLinesInDirection(lines: List[Dict], extra_gap: float, rotate: int) -> L
         shift += extra_gap
     return adjusted_lines
 
+def calculateAverageHeight(lines: List[Dict]) -> float:
+    """
+    그룹 내 line들의 평균 높이를 계산합니다.
+    """
+    heights = [abs(line["bbox"][3] - line["bbox"][1]) for line in lines]
+    return sum(heights) / len(heights) if heights else 1
+
 def adjustLinesWithGap(block: Dict, num_lines: int) -> List[Dict]:
     """
     block["lines"]에서 상위 num_lines개의 line만 남기고,
@@ -107,6 +114,8 @@ def adjustLinesWithGap(block: Dict, num_lines: int) -> List[Dict]:
 
     original_avg_gap = calculateAverageGap(selected_lines, rotate)
     extra_gap = calculateExtraGap(block, selected_lines, original_avg_gap, rotate)
+    line_height = calculateAverageHeight(selected_lines)
+    extra_gap = extra_gap if extra_gap < line_height * 0.7 else line_height * 0.7
 
     return shiftLinesInDirection(selected_lines, extra_gap, rotate)
 
@@ -165,7 +174,7 @@ def makeBboxFromOrigin(origin_x: float, origin_y: float, width: float, height: f
 def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], links:List[Dict], page: pymupdf.Page):
     styled_lines = block.get("styled_lines", [])  # buildStyledLines 결과
     
-    if (block.get("class_name") == "Text"):
+    if (block.get("class_name") not in ["Picture","Table"]):
         line_frames = adjustLinesWithGap(block, len(styled_lines))  # 각 줄의 bbox
     else:
         line_frames = block["line_frames"]  # 각 줄의 bbox
@@ -212,7 +221,7 @@ def drawStyledLines(block: Dict, style_dict: Dict[int, SpanStyle], links:List[Di
                 text=text,
                 fontfile=font_path,
                 fontname=font_name,
-                fontsize=style.font_size,
+                fontsize=style.font_size * block.get("scale", 1.0),
                 color=style.font_color,
                 rotate=style.rotate,
             )

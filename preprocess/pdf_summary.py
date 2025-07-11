@@ -68,8 +68,8 @@ def summarizeChunkWithTerms(pages, source_language="English", target_language="K
 
     # GPT 호출 시, JSON 스키마 명시하여 요약 + 용어집 구조 강제
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0,
+        model="gpt-4.1-mini",
+        # temperature=0,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": input_text}

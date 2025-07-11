@@ -20,11 +20,22 @@ def assignFontFamilyToStyledSpans(styled_spans: List[Dict], target_language: str
             continue
 
         # 첫 글자 기반 초기화
-        current_font_family = getFontFamily(text[0], target_language)
-        current_text = text[0]
+        try:
+            current_font_family = getFontFamily(text[0], target_language)
+            current_text = text[0]
+        except:
+            current_font_family = 'NotoSans'
+            current_text = ' '
+        
 
         for char in text[1:]:
-            font_family = getFontFamily(char, target_language)
+            try:
+                font_family = getFontFamily(char, target_language)
+            except Exception as e:
+                print(e)
+                font_family = current_font_family
+                char = " "
+                
             if font_family == current_font_family:
                 current_text += char
             else:

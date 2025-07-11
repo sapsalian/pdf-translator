@@ -14,10 +14,25 @@ def splitSpecialBlocks(blocks):
         # line의 bbox를 가져오는 함수
         return line.get("bbox", [0, 0, 0, 0])
 
-    def getLineWidth(line):
-        # line의 너비를 계산하는 함수
-        bbox = getLineBbox(line)
-        return bbox[2] - bbox[0]
+    def getAvgCharWidth(line):
+        """
+        주어진 line의 평균 글자 너비를 반환합니다.
+
+        - 라인 bbox 너비 / 문자 수
+        - 공백 포함
+        - spans의 text들을 모두 합쳐 글자 수 계산
+        """
+        bbox = line["bbox"]
+        line_width = bbox[2] - bbox[0]
+
+        # line 내 모든 문자 수 합산 (공백 포함)
+        char_count = sum(len(span.get("text", "")) for span in line.get("spans", []))
+
+        if char_count == 0:
+            return 0.0
+
+        return line_width / char_count
+
 
     def xGap(line1, line2):
         # 두 line 간 x축 gap을 계산 (겹쳐 있으면 0)
@@ -58,12 +73,12 @@ def splitSpecialBlocks(blocks):
             prev_line = lines[i-1]
             curr_line = lines[i]
 
-            avg_width = (getLineWidth(prev_line) + getLineWidth(curr_line)) / 2
-            gap = xGap(prev_line, curr_line)
+            min_width = min(getAvgCharWidth(prev_line),getAvgCharWidth(curr_line))
+            gap = max(xGap(prev_line, curr_line), xGap(curr_line, prev_line))
             y_overlap = yOverlapRatio(prev_line, curr_line)
 
-            # gap이 너비 평균 0.5배보다 크거나, gap > 0 이고 y축 겹침이 없으면 분리
-            if gap > avg_width * 0.5 or (gap > 0 and y_overlap == 0):
+            # gap이 line 둘 중 작은 너비 기준 0.5배보다 크거나, gap > 0 이고 y축 겹침이 없으면 분리
+            if gap > min_width * 2 or (gap > 0 and y_overlap == 0):
                 new_blocks.append({
                     "type": block.get("type", 0),
                     "align": block.get("align", ALIGN_LEFT),

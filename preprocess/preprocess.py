@@ -3,13 +3,15 @@ from preprocess.continuos_block_merge import mergeContinuosBlocks
 from preprocess.block_separate import extractTrueBlocks
 from preprocess.line_preprocess import mergeContinuosLines
 from preprocess.block_align_check import assignAlignToBlocks
-from preprocess.bbox_adjust import adjustBlocksFromYolo, normalizeAllBboxes
+from preprocess.bbox_adjust import adjustBlocksFromYolo, normalizeAllBboxes, adjustBlocksWithoutYolo
 from preprocess.assign_classname import assignClassNameToBlocks
 from preprocess.split_special_blocks import splitSpecialBlocks
 from preprocess.clean_blocks import cleanBlocks
 from preprocess.link_mark import markLinkToSpan
 from preprocess.mark_listitem import markListItems
 from preprocess.make_result_line_frames import assignLineFramesToBlocks
+from preprocess.block_sort import sortLinesInBlocks
+from preprocess.split_blocks_by_line_gap import splitBlocksByLineGap
 
 def preProcess(page_info, src_lang: str, target_lang: str):
     blocks = page_info.get("blocks", [])
@@ -21,6 +23,8 @@ def preProcess(page_info, src_lang: str, target_lang: str):
     
     assignClassNameToBlocks(blocks, yolo_objects)
     
+    blocks = splitBlocksByLineGap(blocks)
+    
     blocks = mergeContinuosBlocks(blocks, src_lang, target_lang)
     blocks = mergeContinuosLines(blocks)
     
@@ -28,15 +32,17 @@ def preProcess(page_info, src_lang: str, target_lang: str):
     
     assignAlignToBlocks(blocks) 
     
-    blocks = extractTrueBlocks(blocks)
+    sortLinesInBlocks(blocks)
     
-    adjustBlocksFromYolo(blocks, yolo_objects)
+    blocks = extractTrueBlocks(blocks, src_lang=src_lang, target_lang=target_lang)
+    
+    adjustBlocksWithoutYolo(blocks)
+    
+    # adjustBlocksFromYolo(blocks, yolo_objects)
     
     markLinkToSpan(blocks, links)
     
-    markListItems(blocks)
-    
-    assignLineFramesToBlocks(blocks, src_lang, target_lang)
+    # assignLineFramesToBlocks(blocks, src_lang, target_lang)
     
     page_info["blocks"] = blocks
 

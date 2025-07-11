@@ -1,6 +1,7 @@
 import pymupdf
 import math
 from util.line_utils import isLinesStartWithSameX
+from util.line_utils import *
 
 def hasSameDirection(lineA, lineB, tolerance=0.2):
         """
@@ -93,7 +94,7 @@ def mergeBlocksByLineOverlap(blocks):
             # 조건 1: x 간격이 적절한지 확인
             x_gap = next_first_line["bbox"][0] - last_line["bbox"][2]
             font_size_max = max(last_span["size"], first_span["size"])
-            x_gap_close = -font_size_max * 2.5 <= x_gap <= font_size_max * 2.5
+            x_gap_close = -font_size_max * 1.5 <= x_gap <= font_size_max * 1.5
 
             # 조건 2: y축으로 충분히 겹치는지 확인
             y0_a, y3_a = last_line["bbox"][1], last_line["bbox"][3]
@@ -178,7 +179,7 @@ def mergeBlocksByYGap(blocks, src_lang, target_lang):
     # 두 block을 병합할 수 있는지 판단하는 함수
     def can_merge(prev, curr, src_lang, target_lang):
         vertical_gap, min_height = get_vertical_gap_and_min_height(prev, curr)
-
+        
         if src_lang == "English" and vertical_gap > 0.5 * min_height:
             return False # y 간격이 크면 더 이상 병합 불가
         if src_lang == "한국어" and vertical_gap > 0.8 * min_height:
@@ -188,6 +189,9 @@ def mergeBlocksByYGap(blocks, src_lang, target_lang):
             return False
 
         if not hasSameDirection(prev["lines"][-1], curr["lines"][0]):  # 방향(읽기 흐름)이 다르면 병합 불가
+            return False
+        
+        if not isSameFontSize(prev["lines"][-1], curr["lines"][0]):
             return False
 
         return True
