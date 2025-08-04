@@ -40,8 +40,91 @@ if $PYTHON_CMD -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)" 2>
     echo -e "${GREEN}✅ Python 버전이 요구사항을 만족합니다 (3.10 이상)${NC}"
 else
     echo -e "${RED}❌ Python 3.10 이상이 필요합니다. 현재 버전: $PYTHON_VERSION${NC}"
-    echo -e "${YELLOW}   Python 3.10 이상을 설치한 후 다시 시도해주세요.${NC}"
-    exit 1
+    echo ""
+    echo -e "${CYAN}📦 Python 3.10 자동 설치 옵션:${NC}"
+    echo -e "${CYAN}   - Ubuntu/Debian: apt를 통한 설치${NC}"
+    echo -e "${CYAN}   - CentOS/RHEL: yum/dnf를 통한 설치${NC}"
+    echo -e "${CYAN}   - macOS: Homebrew를 통한 설치${NC}"
+    echo ""
+    read -p "Python 3.10을 자동으로 설치하시겠습니까? (y/n): " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${BLUE}🔧 시스템 감지 및 Python 3.10 설치 중...${NC}"
+        
+        # 운영체제 감지
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            # Linux 배포판 감지
+            if command -v apt &> /dev/null; then
+                # Ubuntu/Debian
+                echo -e "${BLUE}📦 Ubuntu/Debian 감지됨. apt로 설치합니다...${NC}"
+                sudo apt update
+                sudo apt install -y python3.10 python3.10-venv python3.10-pip
+                # python3.10을 기본 python3로 설정할지 확인
+                if command -v python3.10 &> /dev/null; then
+                    PYTHON_CMD="python3.10"
+                    echo -e "${GREEN}✅ Python 3.10 설치 완료${NC}"
+                else
+                    echo -e "${RED}❌ Python 3.10 설치에 실패했습니다${NC}"
+                    exit 1
+                fi
+            elif command -v yum &> /dev/null; then
+                # CentOS/RHEL (yum)
+                echo -e "${BLUE}📦 CentOS/RHEL 감지됨. yum으로 설치합니다...${NC}"
+                sudo yum install -y python3.10 python3.10-pip
+                if command -v python3.10 &> /dev/null; then
+                    PYTHON_CMD="python3.10"
+                    echo -e "${GREEN}✅ Python 3.10 설치 완료${NC}"
+                else
+                    echo -e "${RED}❌ Python 3.10 설치에 실패했습니다${NC}"
+                    exit 1
+                fi
+            elif command -v dnf &> /dev/null; then
+                # Fedora/newer RHEL (dnf)
+                echo -e "${BLUE}📦 Fedora/RHEL 감지됨. dnf로 설치합니다...${NC}"
+                sudo dnf install -y python3.10 python3.10-pip
+                if command -v python3.10 &> /dev/null; then
+                    PYTHON_CMD="python3.10"
+                    echo -e "${GREEN}✅ Python 3.10 설치 완료${NC}"
+                else
+                    echo -e "${RED}❌ Python 3.10 설치에 실패했습니다${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}❌ 지원되지 않는 Linux 배포판입니다${NC}"
+                echo -e "${YELLOW}   수동으로 Python 3.10을 설치해주세요${NC}"
+                exit 1
+            fi
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            if command -v brew &> /dev/null; then
+                echo -e "${BLUE}📦 macOS 감지됨. Homebrew로 설치합니다...${NC}"
+                brew install python@3.10
+                if command -v python3.10 &> /dev/null; then
+                    PYTHON_CMD="python3.10"
+                    echo -e "${GREEN}✅ Python 3.10 설치 완료${NC}"
+                else
+                    echo -e "${RED}❌ Python 3.10 설치에 실패했습니다${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}❌ Homebrew가 설치되지 않았습니다${NC}"
+                echo -e "${YELLOW}   Homebrew를 먼저 설치하거나 수동으로 Python 3.10을 설치해주세요${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}❌ 지원되지 않는 운영체제입니다${NC}"
+            echo -e "${YELLOW}   수동으로 Python 3.10을 설치해주세요${NC}"
+            exit 1
+        fi
+        
+        # 설치 후 버전 재확인
+        PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | cut -d' ' -f2)
+        echo -e "${GREEN}✅ 업데이트된 Python 버전: $PYTHON_VERSION${NC}"
+    else
+        echo -e "${YELLOW}설치를 건너뜁니다. Python 3.10 이상을 수동으로 설치한 후 다시 실행해주세요.${NC}"
+        exit 1
+    fi
 fi
 
 # 가상환경 확인 및 자동 설정
