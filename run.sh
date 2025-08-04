@@ -34,16 +34,65 @@ fi
 PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | cut -d' ' -f2)
 echo -e "${GREEN}✅ Python $PYTHON_VERSION 감지됨${NC}"
 
-# 가상환경 확인 및 활성화 제안
+# Python 버전 확인 (3.10 이상 필요)
+REQUIRED_VERSION="3.10"
+if $PYTHON_CMD -c "import sys; exit(0 if sys.version_info >= (3, 10) else 1)" 2>/dev/null; then
+    echo -e "${GREEN}✅ Python 버전이 요구사항을 만족합니다 (3.10 이상)${NC}"
+else
+    echo -e "${RED}❌ Python 3.10 이상이 필요합니다. 현재 버전: $PYTHON_VERSION${NC}"
+    echo -e "${YELLOW}   Python 3.10 이상을 설치한 후 다시 시도해주세요.${NC}"
+    exit 1
+fi
+
+# 가상환경 확인 및 자동 설정
 if [[ "$VIRTUAL_ENV" == "" ]]; then
     echo -e "${YELLOW}⚠️  가상환경이 활성화되지 않았습니다.${NC}"
-    echo -e "${YELLOW}   권장사항: python -m venv venv && source venv/bin/activate${NC}"
     echo ""
-    read -p "가상 환경 없이, 계속 진행하시겠습니까? (y/n): " -n 1 -r
+    echo -e "${CYAN}📚 가상환경의 장점:${NC}"
+    echo -e "${CYAN}   - 시스템 Python과 패키지 충돌 방지${NC}"
+    echo -e "${CYAN}   - 프로젝트별 독립적인 패키지 관리${NC}"
+    echo -e "${CYAN}   - 시스템 환경을 깨끗하게 유지${NC}"
     echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}설치를 중단합니다.${NC}"
-        exit 1
+    read -p "가상환경을 자동으로 생성하고 활성화하시겠습니까? (y/n): " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # 가상환경 생성 (없는 경우에만)
+        if [ ! -d "venv" ]; then
+            echo -e "${BLUE}📦 가상환경을 생성합니다...${NC}"
+            $PYTHON_CMD -m venv venv --upgrade-deps
+            if [ $? -ne 0 ]; then
+                echo -e "${YELLOW}⚠️  --upgrade-deps 옵션으로 실패. 기본 방식으로 재시도...${NC}"
+                $PYTHON_CMD -m venv venv
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}❌ 가상환경 생성에 실패했습니다.${NC}"
+                    exit 1
+                fi
+            fi
+            
+            # pip 설치 확인 및 복구
+            echo -e "${BLUE}🔧 pip 설치를 확인합니다...${NC}"
+            source venv/bin/activate
+            if ! python -m pip --version &> /dev/null; then
+                echo -e "${YELLOW}⚠️  pip가 없습니다. ensurepip으로 설치합니다...${NC}"
+                python -m ensurepip --upgrade
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}❌ pip 설치에 실패했습니다.${NC}"
+                    echo -e "${YELLOW}   수동으로 pip를 설치해주세요: curl https://bootstrap.pypa.io/get-pip.py | python${NC}"
+                    exit 1
+                fi
+            fi
+            deactivate
+        fi
+        
+        # 가상환경 활성화
+        echo -e "${BLUE}🔧 가상환경을 활성화합니다...${NC}"
+        source venv/bin/activate
+        export VIRTUAL_ENV="$(pwd)/venv"
+        export PATH="$VIRTUAL_ENV/bin:$PATH"
+        echo -e "${GREEN}✅ 가상환경이 활성화되었습니다${NC}"
+    else
+        echo -e "${YELLOW}⚠️  전역 환경에서 실행합니다. 패키지 충돌이 발생할 수 있습니다.${NC}"
     fi
 else
     echo -e "${GREEN}✅ 가상환경 활성화됨: $VIRTUAL_ENV${NC}"
@@ -56,6 +105,15 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
+# pip 명령어 결정
+if command -v pip3 &> /dev/null; then
+    PIP_CMD="pip3"
+elif command -v pip &> /dev/null; then
+    PIP_CMD="pip"
+else
+    PIP_CMD="$PYTHON_CMD -m pip"
+fi
+
 # 의존성 설치 확인
 echo -e "${BLUE}📦 의존성 패키지 확인 중...${NC}"
 if ! $PYTHON_CMD -c "import pymupdf, openai, ultralytics, numpy" &> /dev/null; then
@@ -64,10 +122,14 @@ if ! $PYTHON_CMD -c "import pymupdf, openai, ultralytics, numpy" &> /dev/null; t
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}📦 패키지 설치 중...${NC}"
-        $PYTHON_CMD -m pip install -r requirements.txt
+        $PIP_CMD install -r requirements.txt
         if [ $? -ne 0 ]; then
-            echo -e "${RED}❌ 패키지 설치에 실패했습니다.${NC}"
-            exit 1
+            echo -e "${YELLOW}⚠️  $PIP_CMD로 실패. python -m pip으로 재시도...${NC}"
+            $PYTHON_CMD -m pip install -r requirements.txt
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}❌ 패키지 설치에 실패했습니다.${NC}"
+                exit 1
+            fi
         fi
         echo -e "${GREEN}✅ 패키지 설치 완료${NC}"
     else
@@ -85,15 +147,9 @@ if [ -z "$OPENAI_API_KEY" ]; then
     echo -e "${YELLOW}   1. export OPENAI_API_KEY=\"your-api-key\"${NC}"
     echo -e "${YELLOW}   2. .env 파일에 OPENAI_API_KEY=your-api-key 추가${NC}"
     echo ""
-    read -p "API 키를 지금 입력하시겠습니까? (y/n): " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        read -p "OpenAI API 키를 입력하세요: " -r
-        export OPENAI_API_KEY="$REPLY"
-        echo -e "${GREEN}✅ API 키가 설정되었습니다${NC}"
-    else
-        echo -e "${YELLOW}⚠️  API 키 없이 진행합니다. 오류가 발생할 수 있습니다.${NC}"
-    fi
+    read -p "OpenAI API 키를 입력하세요: " -r
+    export OPENAI_API_KEY="$REPLY"
+    echo -e "${GREEN}✅ API 키가 설정되었습니다${NC}"
 else
     echo -e "${GREEN}✅ OpenAI API 키가 설정되어 있습니다${NC}"
 fi

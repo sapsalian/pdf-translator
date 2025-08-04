@@ -7,6 +7,7 @@ AI 기반 PDF 문서 번역 도구입니다. 영어 PDF 문서를 한국어로 �
 - 🎯 **고품질 번역**: OpenAI GPT 모델을 활용한 정확한 번역
 - 🎨 **레이아웃 보존**: 원본 문서의 레이아웃, 폰트, 스타일, 링크 등을 유지
 - 🎯 **용어집 관리**: 문서별 핵심 용어를 자동 추출하여 일관된 번역
+- 🌐 **지원 언어**: 현재 영어 → 한국어 번역만 지원
 
 ## 🚀 빠른 시작
 
@@ -14,9 +15,18 @@ AI 기반 PDF 문서 번역 도구입니다. 영어 PDF 문서를 한국어로 �
 
 가장 쉬운 방법! 모든 설정을 자동으로 처리해줍니다:
 
+#### 1. 저장소 클론
 ```bash
 git clone https://github.com/sapsalian/pdf-translator.git
+```
+
+#### 2. 폴더로 이동
+```bash
 cd pdf-translator
+```
+
+#### 3. 실행 스크립트 실행
+```bash
 ./run.sh
 ```
 
@@ -41,7 +51,7 @@ cd pdfTranslate
 #### 2. 가상환경 설정 (권장)
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Windows: venv\\Scripts\\activate
 ```
 
@@ -68,14 +78,14 @@ OPENAI_API_KEY=your-api-key-here
 #### 5. 실행
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 ## 📋 시스템 요구사항
 
 ### Python 패키지
 
-- Python 3.8 이상
+- Python 3.10 이상
 - PyMuPDF (PDF 처리)
 - OpenAI (AI 번역)
 - Ultralytics (YOLO 모델)
