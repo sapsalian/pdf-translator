@@ -48,8 +48,8 @@ def detectObjectFromPage(page, model):
     if pix.n == 4:
         img = img[:, :, :3]
 
-    # YOLO로 이미지에서 객체 탐지 수행
-    results = model(img)
+    # YOLO로 이미지에서 객체 탐지 수행 (verbose=False로 로그 출력 비활성화)
+    results = model(img, verbose=False)
     
     output = []
     scale = 72 / 150  # PDF 좌표계(72 DPI)로 변환하기 위한 스케일

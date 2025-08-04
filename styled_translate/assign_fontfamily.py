@@ -31,8 +31,8 @@ def assignFontFamilyToStyledSpans(styled_spans: List[Dict], target_language: str
         for char in text[1:]:
             try:
                 font_family = getFontFamily(char, target_language)
-            except Exception as e:
-                print(e)
+            except Exception:
+                # Suppress font family errors - use fallback
                 font_family = current_font_family
                 char = " "
                 

@@ -1,0 +1,21 @@
+# PDF 처리
+pymupdf>=1.23.0
+
+# AI/ML 라이브러리
+openai>=1.0.0
+ultralytics>=8.0.0
+numpy>=1.24.0
+
+# 웹 프레임워크 (API 서버용, 선택사항)
+fastapi>=0.104.0
+
+# 데이터 검증
+pydantic>=2.0.0
+
+# 기타 유틸리티
+modal  # 원격 YOLO 추론용 (선택사항)
+
+# 시스템 의존성 (설치 안내용)
+# 다음 패키지들은 시스템 레벨에서 설치 필요:
+# - poppler-utils (PDF 처리)
+# - tesseract-ocr (OCR, 필요시)

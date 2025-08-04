@@ -13,6 +13,12 @@ import traceback
 # from anthropic import Anthropic
 from util.block_utils import ALIGN_CENTER, ALIGN_LEFT
 from styled_translate.assign_fontfamily import assignFontFamilyToStyledSpans
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from util.console_utils import (Colors, print_info, print_success, print_error, 
+                               print_warning, print_processing, print_separator)
 from preprocess.make_result_line_frames import assignLineFramesToBlock
 from styled_translate.assign_style import getFontScale
 
@@ -489,7 +495,7 @@ def removeLineBreaksFromStyledSpans(styled_spans: List[Dict]) -> List[Dict]:
 
 
 def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanStyle'], summary, page_num, term_dict, src_lang, target_lang) -> List[Dict]:
-    def group_blocks_for_translation(target_blocks, max_length=3500):
+    def group_blocks_for_translation(target_blocks, max_length=2000):
         grouped, group, current_len = [], [], 0
         for idx, block in target_blocks:
             styled_text = blockTextWithStyleTags(block, style_dict)
@@ -511,19 +517,20 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
         translated_items = openAiTranslate(payload, src_lang, target_lang)
         return {item.block_num: item.translated_text for item in translated_items}
 
-    print(f"\n📄 [Page {page_num}] 번역할 블록 스타일링 및 그룹핑 시작")
+    # print_separator()
+    # print_processing(f"[Page {page_num}] 번역할 블록 스타일링 및 그룹핑 시작")
     initial_targets = [(idx, block) for idx, block in enumerate(blocks) if block.get("to_be_translated", False)]
     retry_blocks = initial_targets
     failed_blocks = []
 
     for round_num in range(1, 4):
-        print(f"\n🔄 [Page {page_num}] 라운드 {round_num} 번역 시도")
+        # print_info(f"[Page {page_num}] 라운드 {round_num} 번역 시도 ({len(retry_blocks)}개 블록)")
         grouped_blocks = group_blocks_for_translation(retry_blocks)
         failed_blocks = []
         new_retry_blocks = []
 
         for group_num, group in enumerate(grouped_blocks, 1):
-            print(f"🛰️ [Page {page_num}] Group {group_num}: 번역 요청")
+            # print_processing(f"[Page {page_num}] Group {group_num}: 번역 요청")
             try:
                 translated_map = process_group(group)
                 
@@ -534,7 +541,7 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                 for idx, block, _ in group:
                     # 🔧 2. 응답에 빠진 블록은 retry 대상에 추가
                     if idx in missing_block_nums:
-                        print(f"⚠️ [Page {page_num}] Block {idx}: 응답 누락 → 재시도 대상으로 등록")
+                        # print_warning(f"[Page {page_num}] Block {idx}: 응답 누락 → 재시도 대상으로 등록")
                         new_retry_blocks.append((idx, block))
                         continue
                     
@@ -552,13 +559,13 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                         block["styled_lines"] = styled_lines
                         block["to_be_translated"] = True
                         block["scale"] = 1.0
-                        print(f"✅ [Page {page_num}] Block {idx} 처리 완료")
+                        # print_success(f"[Page {page_num}] Block {idx} 처리 완료")
                     except Exception as styling_error:
-                        print(f"❌ [Page {page_num}] Block {idx} 스타일 실패: {styling_error}")
+                        # print_error(f"[Page {page_num}] Block {idx} 스타일 실패: {styling_error}")
                         failed_blocks.append((idx, block, translated_text))
                         # new_retry_blocks.append((idx, block)) # 스타일 실패한 블락은 번역 요청 재시도 하지 않기.
             except Exception as e:
-                print(f"❗ [Page {page_num}] Group {group_num} 번역 실패: {e}")
+                # print_error(f"[Page {page_num}] Group {group_num} 번역 실패: {e}")
                 failed_blocks.extend([(idx, block, translated_text) for idx, block, translated_text in group])
 
         retry_blocks = new_retry_blocks
@@ -568,7 +575,8 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
             break
 
     if failed_blocks:
-        print(f"\n🛠️ [Page {page_num }] Scale 줄여가며 삽입 재시도")
+        # print_info(f"[Page {page_num}] Scale 줄여가며 삽입 재시도")
+        pass
     failed_blocks2 = []
     for idx, block, translated_text in failed_blocks:
         try:
@@ -591,14 +599,15 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
             block["styled_lines"] = styled_lines
             block["to_be_translated"] = True
             block["scale"] = scale
-            print(f"✅ [Page {page_num}] Block {idx}: scale 줄여 삽입시도 성공")
+            # print_success(f"[Page {page_num}] Block {idx}: scale 줄여 삽입시도 성공")
         except Exception as e:
             failed_blocks2.append((idx, block, translated_text))
-            print(f"❌ [Page {page_num}] Block {idx}: scale 줄여 삽입시도 실패")
-            traceback.print_exc()
+            # print_error(f"[Page {page_num}] Block {idx}: scale 줄여 삽입시도 실패")
+            # traceback.print_exc()
     
     if failed_blocks2:
-        print(f"\n🛠️ [Page {page_num}] 개행 제거 후 scale 줄여가며 최종 스타일 재시도")
+        # print_info(f"[Page {page_num}] 개행 제거 후 scale 줄여가며 최종 스타일 재시도")
+        pass
     for idx, block, translated_text in failed_blocks2:
         try:
             styled_spans = parseStyledText(translated_text, block.get("primary_style_id", 0), style_dict=style_dict)
@@ -621,11 +630,11 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
             block["styled_lines"] = styled_lines
             block["to_be_translated"] = True
             block["scale"] = scale
-            print(f"✅ [Page {page_num}] Block {idx}: 최종 개행 제거 성공")
+            # print_success(f"[Page {page_num}] Block {idx}: 최종 개행 제거 성공")
         except Exception as e:
-            print(f"❌ [Page {page_num}] Block {idx}: 개행 제거 후 재시도 실패: {e}")
+            # print_error(f"[Page {page_num}] Block {idx}: 개행 제거 후 재시도 실패: {e}")
             block["to_be_translated"] = False
-            traceback.print_exc()
+            # traceback.print_exc()
 
     return blocks
 

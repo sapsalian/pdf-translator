@@ -7,6 +7,11 @@ import time
 import random
 import re
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from util.console_utils import Colors
+
 client = OpenAI()
 
 def blockTextWithStyleTags(block: Dict, style_dict: Dict[int, 'SpanStyle']) -> str:
@@ -266,8 +271,8 @@ def makeTranslatedStyledSpans(blocks: List[Dict], style_dict: Dict[int, 'SpanSty
                 break  # 성공하면 반복 종료
             except Exception as e:
                 err_count += 1
-                print(f"오류 발생: {e}, 재시도합니다...")
-                print(f"오류 발생 위치: ")
-                print(f"page: {page.number + 1}, block: {blockText(block)}")
+                print(f"{Colors.RED}❌ 오류 발생: {e}, 재시도합니다...{Colors.END}")
+                print(f"{Colors.YELLOW}⚠️  오류 발생 위치: {Colors.END}")
+                print(f"   {Colors.CYAN}page: {page.number + 1}, block: {blockText(block)}{Colors.END}")
     
     return blocks

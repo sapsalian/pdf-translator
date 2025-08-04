@@ -1,6 +1,11 @@
 import pymupdf
 import re
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from util.console_utils import print_error
+
 def lineText(line) :
   text = ""
   prev_span = None
@@ -48,7 +53,7 @@ def getBlockTextsWithUnicodeEscape(blocks):
 def printEscapedBlocksFromPdf(filePath, pageNum):
     doc = pymupdf.open(filePath)
     if pageNum < 0 or pageNum >= len(doc):
-        print(f"❌ 페이지 번호 {pageNum}는 유효하지 않습니다. 총 페이지 수: {len(doc)}")
+        print_error(f"페이지 번호 {pageNum}는 유효하지 않습니다. 총 페이지 수: {len(doc)}")
         return
 
     page = doc[pageNum]

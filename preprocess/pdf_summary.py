@@ -2,8 +2,26 @@ import pymupdf  # PyMuPDF를 사용하여 PDF 텍스트 추출
 import json
 from openai import OpenAI  # OpenAI GPT 호출을 위한 클라이언트
 import time
+import os
 from collections import defaultdict, Counter  # 용어 빈도 계산용
 from concurrent.futures import ThreadPoolExecutor, as_completed  # 병렬 처리
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from util.console_utils import (Colors, print_info, print_success, print_error, 
+                               print_processing, print_header)
+
+# OpenAI API Key 확인 및 클라이언트 생성
+if not os.environ.get('OPENAI_API_KEY'):
+    api_key = input("OpenAI API Key를 입력하세요: ").strip()
+    
+    if not api_key:
+        print_error("API Key가 입력되지 않았습니다.")
+        exit(1)
+    
+    os.environ['OPENAI_API_KEY'] = api_key
+    print_success("API Key가 설정되었습니다.")
 
 client = OpenAI()
 
@@ -136,7 +154,7 @@ def summarizePdfInChunks(pdf_path, chunk_size=7, source_language="English", targ
         chunk = all_pages[i:i + chunk_size]  # 현재 청크
         page_numbers = [p["page"] for p in chunk]  # 청크 내 페이지 번호 목록
         page_range = f"{page_numbers[0]}–{page_numbers[-1]}"
-        print(f"📘 Summarizing pages {page_range}...")
+        print_processing(f"페이지 {page_range} 요약 중...")
 
         try:
             # GPT로 요약과 용어집 생성 요청
@@ -149,7 +167,7 @@ def summarizePdfInChunks(pdf_path, chunk_size=7, source_language="English", targ
             all_glossaries.append(glossary)
         except Exception as e:
             # 에러 발생 시 모든 페이지에 빈 요약 할당
-            print(f"❌ Failed to summarize pages {page_range}: {e}")
+            print_error(f"페이지 {page_range} 요약 실패: {e}")
             all_summaries.extend([{"page": page, "summary": ""} for page in page_numbers])
 
     # 청크별 용어집 병합 (중복 키는 가장 빈도 높은 번역 선택)
@@ -169,7 +187,7 @@ def summarizePdfInChunksParallel(pdf_path, chunk_size=7, max_workers=30, source_
     def processChunk(chunk):
         page_numbers = [p["page"] for p in chunk]
         page_range = f"{page_numbers[0]}–{page_numbers[-1]}"
-        print(f"📘 [Thread] Summarizing pages {page_range}...")
+        # print_processing(f"[Thread] 페이지 {page_range} 요약 중...")
 
         try:
             # GPT 호출: 요약 및 용어집 생성
@@ -180,7 +198,7 @@ def summarizePdfInChunksParallel(pdf_path, chunk_size=7, max_workers=30, source_
             return ordered
         except Exception as e:
             # 실패 시 빈 요약으로 대체
-            print(f"❌ [Thread] Failed pages {page_range}: {e}")
+            print_error(f"[Thread] 페이지 {page_range} 실패: {e}")
             return [{"page": page, "summary": ""} for page in page_numbers]
 
     # ThreadPoolExecutor를 사용하여 병렬 처리 수행
@@ -216,13 +234,13 @@ def summarizeTest(pdf_path, source_language="English", target_language="Korean")
     for item in summaries:
         page = item["page"]
         summary = item["summary"]
-        print(f"\n✅ Page {page}")
-        print(f"   {summary}")
+        print_success(f"페이지 {page}")
+        print(f"   {Colors.CYAN}{summary}{Colors.END}")
 
     # 용어집 출력
-    print("\n📘 Glossary Terms")
+    print_header("📘 용어집")
     for term, translation in terms.items():
-        print(f" - {term} → {translation}")
+        print(f" {Colors.YELLOW}•{Colors.END} {Colors.BOLD}{term}{Colors.END} → {Colors.GREEN}{translation}{Colors.END}")
 
 
         

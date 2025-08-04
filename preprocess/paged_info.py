@@ -1,6 +1,10 @@
 import pymupdf
 from yolo.yolo_inference.detection import detectObjectsFromFile
 from preprocess.pdf_summary import summarizePdfInChunks, summarizePdfInChunksParallel
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from util.console_utils import start_translation_animation, stop_animation, print_stage_progress
 from draw.draw_blocks import drawBlocks
 import modal
 import json
@@ -68,11 +72,25 @@ def getFileInfo(file_path, src_lang, target_lang, max_workers=30):
     ]
     '''
     results = []
-    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
+    
+    # 요약 및 용어집 생성 애니메이션 시작
+    summary_animation_running = start_translation_animation("summary")
     
     summaries_with_terms = summarizePdfInChunksParallel(file_path, source_language=src_lang, target_language=target_lang, max_workers=max_workers)
     term_dict = summaries_with_terms["term_dict"]
     summary_dict = {s["page"]: s["summary"] for s in summaries_with_terms["summaries"]}
+    
+    # 애니메이션 중지
+    stop_animation(summary_animation_running)
+    
+    # 2단계 진행상황 출력
+    print_stage_progress("레이아웃 분석 중", 2, 4)
+    
+    # 레이아웃 분석 애니메이션 시작
+    layout_animation_running = start_translation_animation("layout")
+    
+    paged_yolo = {item["page_num"]: item["objects"] for item in getYoloObjects(file_path)}
+    
 
     with pymupdf.open(file_path) as doc:
         for page_num, page in enumerate(doc, start=1):
@@ -89,7 +107,10 @@ def getFileInfo(file_path, src_lang, target_lang, max_workers=30):
                 "yolo_objects": paged_yolo.get(page_num, []),
                 "summary": summary_dict.get(page_num, "")
             })
-
+  
+    # 레이아웃 분석 애니메이션 중지
+    stop_animation(layout_animation_running)
+    
     return {
         "term_dict": term_dict,
         "page_infos": results
