@@ -1,24 +1,16 @@
 # Python 버전 요구사항
-# Python 3.10 이상 필요
+# Python 3.10.12 이상 필요
 
 # PDF 처리
-pymupdf>=1.23.0
+pymupdf==1.26.3
+pymupdf-fonts==1.0.5
 
 # AI/ML 라이브러리
-openai>=1.0.0
-ultralytics>=8.0.0
-numpy>=1.24.0
+openai==1.75.0
+ultralytics==8.3.116
+numpy==1.26.4
 
-# 웹 프레임워크 (API 서버용, 선택사항)
-fastapi>=0.104.0
+# 데이터 검증 및 처리
+pydantic==2.11.7
 
-# 데이터 검증
-pydantic>=2.0.0
-
-# 기타 유틸리티
 modal  # 원격 YOLO 추론용 (선택사항)
-
-# 시스템 의존성 (설치 안내용)
-# 다음 패키지들은 시스템 레벨에서 설치 필요:
-# - poppler-utils (PDF 처리)
-# - tesseract-ocr (OCR, 필요시)
